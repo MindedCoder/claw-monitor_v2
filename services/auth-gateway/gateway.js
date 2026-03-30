@@ -80,6 +80,13 @@ export async function startGateway(config) {
 
       // nginx auth_request check
       if (path === '/auth/check') {
+        // API and static paths bypass auth
+        const originalUri = req.headers['x-original-uri'] || '';
+        if (originalUri.startsWith('/api/') || originalUri.startsWith('/static/') || originalUri === '/healthz') {
+          res.writeHead(200);
+          return res.end();
+        }
+
         const cookies = parseCookies(req);
         const sid = cookies[cookieName];
         const user = sid ? sessions.get(sid) : null;
