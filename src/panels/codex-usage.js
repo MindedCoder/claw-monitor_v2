@@ -46,6 +46,7 @@ export default function createCodexPanel(config) {
 
   async function refresh() {
     const token = readToken();
+    console.log(`[codex-usage] token: ${token ? token.slice(0, 30) + '...' : 'null'} (from ${authPath})`);
     if (!token) {
       state.error = 'token not found';
       state.lastCheck = Date.now();
@@ -53,6 +54,7 @@ export default function createCodexPanel(config) {
     }
 
     try {
+      console.log(`[codex-usage] requesting ${USAGE_API}`);
       const res = await fetchWithTimeout(USAGE_API, {
         timeoutMs: 15000,
         headers: {
@@ -62,13 +64,17 @@ export default function createCodexPanel(config) {
         },
       });
 
+      console.log(`[codex-usage] response status: ${res.status}`);
       if (!res.ok) {
+        const body = await res.text();
+        console.log(`[codex-usage] error body: ${body.slice(0, 500)}`);
         state.error = `HTTP ${res.status}`;
         state.lastCheck = Date.now();
         return state;
       }
 
       const data = await res.json();
+      console.log(`[codex-usage] response: ${JSON.stringify(data).slice(0, 500)}`);
       const rl = data.rate_limit || {};
 
       state.error = null;
@@ -84,6 +90,7 @@ export default function createCodexPanel(config) {
         resetAt: new Date(rl.secondary_window.reset_at * 1000).toISOString(),
       } : null;
     } catch (err) {
+      console.log(`[codex-usage] error: ${err.message}`);
       state.error = err.message;
     }
     state.lastCheck = Date.now();
