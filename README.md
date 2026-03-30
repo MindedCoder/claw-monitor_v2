@@ -101,9 +101,7 @@ claw-monitor_v2/
 ## 安装
 
 ```bash
-git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/Documents/claw-monitor_v2
-cd ~/Documents/claw-monitor_v2
-bash install.sh
+git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/Documents/claw-monitor_v2 && bash ~/Documents/claw-monitor_v2/install.sh
 ```
 
 安装脚本自动完成：
@@ -246,18 +244,15 @@ curl -X POST http://127.0.0.1:9001/api/deploy \
 ## 更新
 
 ```bash
-cd ~/Documents/claw-monitor_v2
-git pull
-bash update.sh
+cd ~/Documents/claw-monitor_v2 && git pull && bash update.sh
 ```
 
-`update.sh` 会自动停止旧进程、更新源码、保留 `data/config.json`、重启服务。
+自动停止旧进程、更新源码、保留 `data/config.json`、重启服务。
 
 ## 卸载
 
 ```bash
-cd ~/Documents/claw-monitor_v2
-bash uninstall.sh
+bash ~/Documents/claw-monitor_v2/uninstall.sh
 ```
 
 卸载脚本会交互式询问是否清理：
