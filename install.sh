@@ -150,7 +150,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
     },
     "proxies": [
       {
-        "name": "monitor-v2",
+        "name": "monitor-v2-${INPUT_INSTANCE}",
         "type": "http",
         "localIP": "127.0.0.1",
         "localPort": ${INPUT_PORT},
