@@ -10,8 +10,9 @@ const MIME = {
   '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf',
 };
 
-export function createServer(config, routes) {
+export function createServer(config, routes, onLog) {
   const basePath = config.instanceName ? '/' + config.instanceName : '';
+  const log = onLog || (() => {});
 
   const server = http.createServer((req, res) => {
     // CORS preflight
@@ -33,6 +34,7 @@ export function createServer(config, routes) {
     }
 
     const key = `${req.method} ${path}`;
+    log('info', `${req.method} ${url.pathname} → ${path}`);
 
     // exact match
     if (routes.has(key)) {
@@ -44,6 +46,7 @@ export function createServer(config, routes) {
       return serveStatic(config, path, res);
     }
 
+    log('warn', `404 ${req.method} ${path}`);
     send404(res);
   });
 

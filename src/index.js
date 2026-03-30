@@ -60,7 +60,7 @@ async function main() {
 
   // start server
   const port = config.port || 9001;
-  const server = createServer(config, routes);
+  const server = createServer(config, routes, (level, msg) => syslog.push(level, msg));
   server.listen(port, () => {
     console.log(`[claw-monitor-v2] dashboard on http://127.0.0.1:${port}`);
   });
