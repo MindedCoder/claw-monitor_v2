@@ -223,7 +223,7 @@ if [ -f "$PID_FILE" ]; then
     sleep 2
   fi
 fi
-pgrep -f "node.*claw-monitor_v2/src/index" | while read stale_pid; do
+for stale_pid in $(pgrep -f "node.*claw-monitor_v2/src/index" 2>/dev/null || true); do
   echo "[INFO] Killing stale node process $stale_pid..."
   kill "$stale_pid" 2>/dev/null || true
 done
