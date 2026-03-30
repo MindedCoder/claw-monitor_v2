@@ -1,0 +1,14 @@
+{
+  "name": "claw-monitor-v2",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Standalone monitoring dashboard and deployment toolkit",
+  "main": "src/index.js",
+  "scripts": {
+    "start": "node src/index.js",
+    "gateway": "node services/auth-gateway/gateway.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

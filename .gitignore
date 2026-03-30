@@ -1,0 +1,7 @@
+data/config.json
+data/static/
+data/*.log
+data/*.toml
+data/*.json
+!data/.gitkeep
+node_modules/
