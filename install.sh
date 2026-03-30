@@ -56,46 +56,6 @@ if [ ! -f "$CONFIG_FILE" ]; then
   read -p "监控面板端口 [9001]: " INPUT_PORT
   INPUT_PORT="${INPUT_PORT:-9001}"
 
-  # auth gateway
-  echo ""
-  echo "--- 认证网关配置 ---"
-  read -p "是否启用认证网关? (y/n) [y]: " INPUT_GW_ENABLED
-  INPUT_GW_ENABLED="${INPUT_GW_ENABLED:-y}"
-
-  INPUT_GW_PORT="4180"
-  INPUT_AUTH_PROVIDER="password"
-  AUTH_PROVIDER_JSON=""
-
-  if [[ "$INPUT_GW_ENABLED" =~ ^[Yy]$ ]]; then
-    read -p "认证网关端口 [4180]: " INPUT_GW_PORT
-    INPUT_GW_PORT="${INPUT_GW_PORT:-4180}"
-    read -p "认证方式 (password/feishu/wechat/telegram) [password]: " INPUT_AUTH_PROVIDER
-    INPUT_AUTH_PROVIDER="${INPUT_AUTH_PROVIDER:-password}"
-
-    case "$INPUT_AUTH_PROVIDER" in
-      password)
-        read -p "登录密码 [changeme]: " INPUT_PASSWORD
-        INPUT_PASSWORD="${INPUT_PASSWORD:-changeme}"
-        AUTH_PROVIDER_JSON="\"password\": \"${INPUT_PASSWORD}\""
-        ;;
-      feishu)
-        read -p "飞书 App ID: " INPUT_FEISHU_APPID
-        read -p "飞书 App Secret: " INPUT_FEISHU_SECRET
-        AUTH_PROVIDER_JSON="\"appId\": \"${INPUT_FEISHU_APPID}\", \"appSecret\": \"${INPUT_FEISHU_SECRET}\""
-        ;;
-      wechat)
-        read -p "微信 App ID: " INPUT_WX_APPID
-        read -p "微信 App Secret: " INPUT_WX_SECRET
-        AUTH_PROVIDER_JSON="\"appId\": \"${INPUT_WX_APPID}\", \"appSecret\": \"${INPUT_WX_SECRET}\""
-        ;;
-      telegram)
-        read -p "Telegram Bot Name: " INPUT_TG_BOTNAME
-        read -p "Telegram Bot Token: " INPUT_TG_TOKEN
-        AUTH_PROVIDER_JSON="\"botName\": \"${INPUT_TG_BOTNAME}\", \"botToken\": \"${INPUT_TG_TOKEN}\""
-        ;;
-    esac
-  fi
-
   # generate config.json
   cat > "$CONFIG_FILE" << CONF
 {
@@ -160,19 +120,6 @@ if [ ! -f "$CONFIG_FILE" ]; then
     ]
   },
 
-  "authGateway": $(if [[ "$INPUT_GW_ENABLED" =~ ^[Yy]$ ]]; then cat << GWCONF
-{
-    "port": ${INPUT_GW_PORT},
-    "sessionTtlMs": 604800000,
-    "cookieName": "claw_session",
-    "authProvider": "${INPUT_AUTH_PROVIDER}",
-    "provider": {
-      ${AUTH_PROVIDER_JSON}
-    },
-    "tenants": {}
-  }
-GWCONF
-  else echo "false"; fi)
 }
 CONF
 
