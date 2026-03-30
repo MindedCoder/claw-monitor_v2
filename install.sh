@@ -7,8 +7,10 @@ INSTALL_DIR="${HOME}/Documents/${PROJECT_NAME}"
 PID_FILE="${INSTALL_DIR}/data/monitor.pid"
 PLIST_LABEL="com.claw-monitor-v2.monitor"
 PLIST_FILE="${HOME}/Library/LaunchAgents/${PLIST_LABEL}.plist"
+CONFIG_FILE="${INSTALL_DIR}/data/config.json"
 
 echo "=== Claw Monitor v2 Installer ==="
+echo ""
 
 # 1. check node
 NODE_BIN=""
@@ -36,14 +38,162 @@ else
   echo "[INFO] Already in install directory."
 fi
 
-# 3. create data dir & default config
+# 3. create data dir & config
 mkdir -p "${INSTALL_DIR}/data/static"
-if [ ! -f "${INSTALL_DIR}/data/config.json" ]; then
-  cp "${INSTALL_DIR}/config.example.json" "${INSTALL_DIR}/data/config.json"
-  echo "[OK] Created default config at data/config.json"
-  echo "[IMPORTANT] Edit data/config.json to customize your settings!"
+
+# ========== interactive config ==========
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo ""
+  echo "--- 首次安装，请配置以下参数 ---"
+  echo "(直接回车使用 [默认值])"
+  echo ""
+
+  # instance name
+  read -p "实例名称 [default]: " INPUT_INSTANCE
+  INPUT_INSTANCE="${INPUT_INSTANCE:-default}"
+
+  # monitor port
+  read -p "监控面板端口 [9001]: " INPUT_PORT
+  INPUT_PORT="${INPUT_PORT:-9001}"
+
+  # frpc
+  echo ""
+  echo "--- frpc 隧道配置 ---"
+  read -p "frpc 服务器地址 (如 1.2.3.4): " INPUT_FRPC_ADDR
+  read -p "frpc 服务器端口 [7000]: " INPUT_FRPC_PORT
+  INPUT_FRPC_PORT="${INPUT_FRPC_PORT:-7000}"
+  read -p "frpc 认证 token (无则留空): " INPUT_FRPC_TOKEN
+
+  read -p "frpc 代理名称 [monitor]: " INPUT_PROXY_NAME
+  INPUT_PROXY_NAME="${INPUT_PROXY_NAME:-monitor}"
+  read -p "frpc 代理类型 (http/tcp) [http]: " INPUT_PROXY_TYPE
+  INPUT_PROXY_TYPE="${INPUT_PROXY_TYPE:-http}"
+  read -p "frpc 本地端口 [${INPUT_PORT}]: " INPUT_PROXY_LOCAL_PORT
+  INPUT_PROXY_LOCAL_PORT="${INPUT_PROXY_LOCAL_PORT:-$INPUT_PORT}"
+
+  INPUT_PROXY_EXTRA=""
+  if [ "$INPUT_PROXY_TYPE" = "http" ]; then
+    read -p "frpc 自定义域名 (如 claw.example.com): " INPUT_CUSTOM_DOMAIN
+    if [ -n "$INPUT_CUSTOM_DOMAIN" ]; then
+      INPUT_PROXY_EXTRA="\"customDomains\": [\"${INPUT_CUSTOM_DOMAIN}\"]"
+    else
+      INPUT_PROXY_EXTRA="\"customDomains\": []"
+    fi
+  else
+    read -p "frpc 远程端口: " INPUT_REMOTE_PORT
+    if [ -n "$INPUT_REMOTE_PORT" ]; then
+      INPUT_PROXY_EXTRA="\"remotePort\": ${INPUT_REMOTE_PORT}"
+    fi
+  fi
+
+  # auth gateway
+  echo ""
+  echo "--- 认证网关配置 ---"
+  read -p "认证网关端口 [4180]: " INPUT_GW_PORT
+  INPUT_GW_PORT="${INPUT_GW_PORT:-4180}"
+  read -p "认证方式 (password/feishu/wechat/telegram) [password]: " INPUT_AUTH_PROVIDER
+  INPUT_AUTH_PROVIDER="${INPUT_AUTH_PROVIDER:-password}"
+
+  AUTH_PROVIDER_JSON=""
+  case "$INPUT_AUTH_PROVIDER" in
+    password)
+      read -p "登录密码 [changeme]: " INPUT_PASSWORD
+      INPUT_PASSWORD="${INPUT_PASSWORD:-changeme}"
+      AUTH_PROVIDER_JSON="\"password\": \"${INPUT_PASSWORD}\""
+      ;;
+    feishu)
+      read -p "飞书 App ID: " INPUT_FEISHU_APPID
+      read -p "飞书 App Secret: " INPUT_FEISHU_SECRET
+      AUTH_PROVIDER_JSON="\"appId\": \"${INPUT_FEISHU_APPID}\", \"appSecret\": \"${INPUT_FEISHU_SECRET}\""
+      ;;
+    wechat)
+      read -p "微信 App ID: " INPUT_WX_APPID
+      read -p "微信 App Secret: " INPUT_WX_SECRET
+      AUTH_PROVIDER_JSON="\"appId\": \"${INPUT_WX_APPID}\", \"appSecret\": \"${INPUT_WX_SECRET}\""
+      ;;
+    telegram)
+      read -p "Telegram Bot Name: " INPUT_TG_BOTNAME
+      read -p "Telegram Bot Token: " INPUT_TG_TOKEN
+      AUTH_PROVIDER_JSON="\"botName\": \"${INPUT_TG_BOTNAME}\", \"botToken\": \"${INPUT_TG_TOKEN}\""
+      ;;
+  esac
+
+  # generate config.json
+  cat > "$CONFIG_FILE" << CONF
+{
+  "port": ${INPUT_PORT},
+  "instanceName": "${INPUT_INSTANCE}",
+  "basePath": "",
+
+  "health": {
+    "enabled": true,
+    "url": "http://127.0.0.1:18789/health",
+    "intervalMs": 5000,
+    "timeoutMs": 5000,
+    "failThreshold": 3
+  },
+
+  "ping": {
+    "enabled": true,
+    "targets": [
+      { "name": "Google", "url": "https://www.google.com" },
+      { "name": "Baidu", "url": "https://www.baidu.com" }
+    ],
+    "timeoutMs": 10000
+  },
+
+  "codexUsage": {
+    "enabled": true,
+    "intervalMs": 300000,
+    "authProfilesPath": "~/.openclaw/agents/main/agent/auth-profiles.json"
+  },
+
+  "logs": {
+    "maxEntries": 500,
+    "sources": [
+      { "name": "gateway", "path": "~/.openclaw/logs/gateway.log" },
+      { "name": "errors", "path": "~/.openclaw/logs/gateway.err.log" }
+    ]
+  },
+
+  "deploy": {
+    "staticDir": "./data/static"
+  },
+
+  "frpc": {
+    "version": "0.61.1",
+    "serverAddr": "${INPUT_FRPC_ADDR}",
+    "serverPort": ${INPUT_FRPC_PORT},
+    "token": "${INPUT_FRPC_TOKEN}",
+    "proxies": [
+      {
+        "name": "${INPUT_PROXY_NAME}",
+        "type": "${INPUT_PROXY_TYPE}",
+        "localIP": "127.0.0.1",
+        "localPort": ${INPUT_PROXY_LOCAL_PORT},
+        ${INPUT_PROXY_EXTRA}
+      }
+    ]
+  },
+
+  "authGateway": {
+    "port": ${INPUT_GW_PORT},
+    "sessionTtlMs": 604800000,
+    "cookieName": "claw_session",
+    "authProvider": "${INPUT_AUTH_PROVIDER}",
+    "provider": {
+      ${AUTH_PROVIDER_JSON}
+    },
+    "tenants": {}
+  }
+}
+CONF
+
+  echo ""
+  echo "[OK] Config generated at ${CONFIG_FILE}"
 else
-  echo "[OK] Config already exists, not overwriting."
+  echo "[OK] Config already exists, skipping interactive setup."
+  echo "     To reconfigure, delete data/config.json and re-run install.sh"
 fi
 
 # 4. download frpc
@@ -87,13 +237,12 @@ if [ -f "$PID_FILE" ]; then
     sleep 2
   fi
 fi
-# also kill any stale processes from this project
 pgrep -f "node.*claw-monitor_v2/src/index" | while read stale_pid; do
   echo "[INFO] Killing stale node process $stale_pid..."
   kill "$stale_pid" 2>/dev/null || true
 done
 
-# 6. write startup wrapper script (used by both manual start and LaunchAgent)
+# 6. write startup wrapper script
 STARTUP_SCRIPT="${INSTALL_DIR}/data/startup.sh"
 cat > "$STARTUP_SCRIPT" << WRAPPER
 #!/usr/bin/env bash
@@ -122,9 +271,7 @@ echo "[OK] Monitor started (keepalive PID: $KEEPALIVE_PID)"
 if [ "$(uname -s)" = "Darwin" ]; then
   echo "[INFO] Setting up macOS auto-start (LaunchAgent)..."
 
-  # unload old plist if exists (safe: just remove the file, no launchctl unload)
   if [ -f "$PLIST_FILE" ]; then
-    # try bootout first (modern API, no permission prompt)
     launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
   fi
 
@@ -170,29 +317,23 @@ if [ "$(uname -s)" = "Darwin" ]; then
 </plist>
 PLIST
 
-  # load using modern bootstrap API (no permission prompt)
   launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE" 2>/dev/null || true
   echo "[OK] LaunchAgent installed: auto-start on login enabled"
-  echo "     Plist: $PLIST_FILE"
-  echo "     KeepAlive: enabled (launchd will restart if crashed)"
 fi
 
 # 9. verify
 sleep 2
 if kill -0 "$KEEPALIVE_PID" 2>/dev/null; then
-  PORT=$(grep -o '"port":[[:space:]]*[0-9]*' data/config.json | head -1 | grep -o '[0-9]*')
+  PORT=$(grep -o '"port":[[:space:]]*[0-9]*' "$CONFIG_FILE" | head -1 | grep -o '[0-9]*')
   PORT=${PORT:-9001}
   echo ""
   echo "=== Installation Complete ==="
   echo "  Dashboard:   http://127.0.0.1:${PORT}"
-  echo "  Config:      ${INSTALL_DIR}/data/config.json"
+  echo "  Config:      ${CONFIG_FILE}"
   echo "  Logs:        ${INSTALL_DIR}/data/monitor.log"
-  echo "  PID file:    ${PID_FILE}"
   echo "  Auto-start:  LaunchAgent (survives reboot)"
   echo ""
-  echo "Next steps:"
-  echo "  1. Edit data/config.json to set instanceName, healthUrl, frpc settings, etc."
-  echo "  2. Restart: bash install.sh"
+  echo "  To reconfigure: rm ${CONFIG_FILE} && bash install.sh"
 else
   echo "[ERROR] Monitor failed to start. Check data/monitor.log for details."
   exit 1
