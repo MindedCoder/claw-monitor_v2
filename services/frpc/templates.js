@@ -43,6 +43,9 @@ export function generateToml(config) {
     if (p.subdomain) {
       lines.push(`subdomain = "${p.subdomain}"`);
     }
+    if (p.locations?.length) {
+      lines.push(`locations = [${p.locations.map(l => `"${l}"`).join(', ')}]`);
+    }
     lines.push('');
   }
 

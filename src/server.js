@@ -11,6 +11,8 @@ const MIME = {
 };
 
 export function createServer(config, routes) {
+  const basePath = config.instanceName ? '/' + config.instanceName : '';
+
   const server = http.createServer((req, res) => {
     // CORS preflight
     if (req.method === 'OPTIONS') {
@@ -23,7 +25,13 @@ export function createServer(config, routes) {
     }
 
     const url = parseUrl(req);
-    const path = url.pathname;
+    let path = url.pathname;
+
+    // strip basePath prefix (e.g. /huangcan/api/ping → /api/ping)
+    if (basePath && path.startsWith(basePath)) {
+      path = path.slice(basePath.length) || '/';
+    }
+
     const key = `${req.method} ${path}`;
 
     // exact match
