@@ -159,8 +159,7 @@ bash install.sh
   },
 
   "authGateway": {
-    "enabled": false,              // 开启认证网关
-    "port": 4180,
+    "port": 4180,                  // 认证网关，配置即启动
     "authProvider": "password",
     "provider": { "password": "changeme" }
   }

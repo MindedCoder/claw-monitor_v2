@@ -54,7 +54,6 @@
   },
 
   "authGateway": {
-    "enabled": false,
     "port": 4180,
     "sessionTtlMs": 604800000,
     "cookieName": "claw_session",
