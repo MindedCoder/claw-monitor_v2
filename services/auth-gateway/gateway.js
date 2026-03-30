@@ -80,9 +80,9 @@ export async function startGateway(config) {
 
       // nginx auth_request check
       if (path === '/auth/check') {
-        // API and static paths bypass auth
+        // API and static paths bypass auth (support path prefix like /huangcan/api/...)
         const originalUri = req.headers['x-original-uri'] || '';
-        if (originalUri.startsWith('/api/') || originalUri.startsWith('/static/') || originalUri === '/healthz') {
+        if (originalUri.includes('/api/') || originalUri.includes('/static/') || originalUri.endsWith('/healthz')) {
           res.writeHead(200);
           return res.end();
         }
