@@ -1,4 +1,5 @@
 export function pageShell(instanceName, bodyHtml) {
+  const basePath = instanceName ? '/' + instanceName : '';
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -13,7 +14,7 @@ export function pageShell(instanceName, bodyHtml) {
     <span class="version">Claw Monitor v2</span>
   </header>
   <main class="app">${bodyHtml}</main>
-  <script>${JS}</script>
+  <script>const BASE='${basePath}';${JS}</script>
 </body>
 </html>`;
 }
@@ -91,7 +92,7 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 const JS = `
 async function triggerPing() {
   try {
-    const r = await fetch('/api/ping/trigger');
+    const r = await fetch(BASE+'/api/ping/trigger');
     const d = await r.json();
     console.log('ping result:', d);
     location.reload();
@@ -99,13 +100,13 @@ async function triggerPing() {
 }
 async function refreshCodex() {
   try {
-    await fetch('/api/codex-usage/refresh');
+    await fetch(BASE+'/api/codex-usage/refresh');
     location.reload();
   } catch(e) { console.error(e); }
 }
 setInterval(async () => {
   try {
-    const r = await fetch('/api/html');
+    const r = await fetch(BASE+'/api/html');
     if (r.ok) {
       const html = await r.text();
       document.querySelector('.app').innerHTML = html;
