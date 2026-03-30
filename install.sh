@@ -214,7 +214,12 @@ else
   fi
 fi
 
-# 5. stop existing monitor if running
+# 5. stop LaunchAgent first (prevent KeepAlive from respawning)
+if [ "$(uname -s)" = "Darwin" ] && [ -f "$PLIST_FILE" ]; then
+  launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
+fi
+
+# 6. stop existing monitor
 if [ -f "$PID_FILE" ]; then
   OLD_PID=$(cat "$PID_FILE" 2>/dev/null || true)
   if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
