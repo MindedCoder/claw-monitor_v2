@@ -26,18 +26,18 @@ export default function createCodexPanel(config) {
       // format: { profiles: { "openai:default": { key: "sk-..." } } }
       if (data.profiles && typeof data.profiles === 'object') {
         for (const p of Object.values(data.profiles)) {
-          if (p.key) return p.key;
-          if (p.accessToken) return p.accessToken;
+          const token = p.access || p.accessToken || p.key;
+          if (token) return token;
         }
       }
 
       // format: [{ accessToken: "..." }]
       if (Array.isArray(data)) {
-        const p = data.find(p => p.accessToken || p.key);
-        return p?.accessToken || p?.key || null;
+        const p = data.find(p => p.access || p.accessToken || p.key);
+        return p?.access || p?.accessToken || p?.key || null;
       }
 
-      return data.accessToken || data.key || null;
+      return data.access || data.accessToken || data.key || null;
     } catch { return null; }
   }
 
