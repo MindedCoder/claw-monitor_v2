@@ -13,7 +13,11 @@ export default function createCodexPanel(config) {
   const state = {
     lastCheck: null,
     error: null,
-    data: null,
+    email: null,
+    plan: null,
+    limitReached: false,
+    primary: null,
+    secondary: null,
   };
 
   let timer = null;
@@ -23,18 +27,17 @@ export default function createCodexPanel(config) {
     try {
       const data = JSON.parse(readFileSync(authPath, 'utf-8'));
 
-      // format: { profiles: { "openai:default": { key: "sk-..." } } }
+      // prefer openai-codex:default.access (OAuth JWT)
+      if (data.profiles?.['openai-codex:default']?.access) {
+        return data.profiles['openai-codex:default'].access;
+      }
+
+      // fallback: iterate all profiles
       if (data.profiles && typeof data.profiles === 'object') {
         for (const p of Object.values(data.profiles)) {
           const token = p.access || p.accessToken || p.key;
           if (token) return token;
         }
-      }
-
-      // format: [{ accessToken: "..." }]
-      if (Array.isArray(data)) {
-        const p = data.find(p => p.access || p.accessToken || p.key);
-        return p?.access || p?.accessToken || p?.key || null;
       }
 
       return data.access || data.accessToken || data.key || null;
@@ -54,7 +57,7 @@ export default function createCodexPanel(config) {
         timeoutMs: 15000,
         headers: {
           'Authorization': `Bearer ${token}`,
-          'User-Agent': 'Mozilla/5.0',
+          'User-Agent': 'OpenClaw-Monitor/2.0',
           'Accept': 'application/json',
         },
       });
@@ -65,35 +68,26 @@ export default function createCodexPanel(config) {
         return state;
       }
 
-      const body = await res.json();
-      state.data = parseUsage(body);
+      const data = await res.json();
+      const rl = data.rate_limit || {};
+
       state.error = null;
+      state.limitReached = rl.limit_reached || false;
+      state.email = data.email || null;
+      state.plan = data.plan_type || null;
+      state.primary = rl.primary_window ? {
+        usedPercent: rl.primary_window.used_percent,
+        resetAt: new Date(rl.primary_window.reset_at * 1000).toISOString(),
+      } : null;
+      state.secondary = rl.secondary_window ? {
+        usedPercent: rl.secondary_window.used_percent,
+        resetAt: new Date(rl.secondary_window.reset_at * 1000).toISOString(),
+      } : null;
     } catch (err) {
       state.error = err.message;
     }
     state.lastCheck = Date.now();
     return state;
-  }
-
-  function parseUsage(body) {
-    const result = { raw: body };
-
-    // extract rate limit windows
-    if (body.rate_limits) {
-      result.limits = body.rate_limits.map(rl => ({
-        name: rl.name || rl.window,
-        used: rl.used,
-        cap: rl.cap,
-        pct: rl.cap > 0 ? Math.round((rl.used / rl.cap) * 100) : 0,
-        resetsAt: rl.resets_at,
-      }));
-    }
-
-    if (body.usage_summary) {
-      result.summary = body.usage_summary;
-    }
-
-    return result;
   }
 
   function startPolling() {
@@ -120,26 +114,49 @@ export default function createCodexPanel(config) {
     let content;
     if (state.error) {
       content = `<div class="card-value error">${esc(state.error)}</div>`;
-    } else if (!state.data) {
+    } else if (!state.primary && !state.secondary) {
       content = `<div class="card-value unknown">未获取</div>`;
-    } else if (state.data.limits) {
-      content = state.data.limits.map(l => `
-        <div class="usage-row">
-          <span class="usage-label">${esc(l.name)}</span>
-          <div class="progress-bar">
-            <div class="progress-fill ${l.pct > 80 ? 'warn' : ''}" style="width:${l.pct}%"></div>
-          </div>
-          <span class="usage-pct">${l.pct}%</span>
-        </div>
-      `).join('');
     } else {
-      content = `<pre class="raw-json">${esc(JSON.stringify(state.data.raw, null, 2).slice(0, 500))}</pre>`;
+      const rows = [];
+      if (state.primary) {
+        const pct = Math.round(state.primary.usedPercent * 100);
+        const resetTime = new Date(state.primary.resetAt).toLocaleTimeString('zh-CN', { hour12: false });
+        rows.push(`
+          <div class="usage-row">
+            <span class="usage-label">5h 窗口</span>
+            <div class="progress-bar">
+              <div class="progress-fill ${pct > 80 ? 'warn' : ''}" style="width:${pct}%"></div>
+            </div>
+            <span class="usage-pct">${pct}%</span>
+          </div>
+          <div class="card-time">重置: ${resetTime}</div>`);
+      }
+      if (state.secondary) {
+        const pct = Math.round(state.secondary.usedPercent * 100);
+        const resetTime = new Date(state.secondary.resetAt).toLocaleTimeString('zh-CN', { hour12: false });
+        rows.push(`
+          <div class="usage-row">
+            <span class="usage-label">周窗口</span>
+            <div class="progress-bar">
+              <div class="progress-fill ${pct > 80 ? 'warn' : ''}" style="width:${pct}%"></div>
+            </div>
+            <span class="usage-pct">${pct}%</span>
+          </div>
+          <div class="card-time">重置: ${resetTime}</div>`);
+      }
+      content = rows.join('');
+      if (state.limitReached) {
+        content += `<div class="down-info">已达配额上限</div>`;
+      }
     }
+
+    const planInfo = state.plan ? `<span class="log-count">${esc(state.plan)}</span>` : '';
 
     return `
       <div class="panel codex-panel">
         <div class="panel-header">
           <h3>Codex 使用量</h3>
+          ${planInfo}
           <button onclick="refreshCodex()" class="btn btn-sm">刷新</button>
         </div>
         ${content}
