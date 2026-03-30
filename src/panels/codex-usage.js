@@ -21,12 +21,23 @@ export default function createCodexPanel(config) {
   function readToken() {
     if (!authPath || !existsSync(authPath)) return null;
     try {
-      const profiles = JSON.parse(readFileSync(authPath, 'utf-8'));
-      if (Array.isArray(profiles)) {
-        const p = profiles.find(p => p.accessToken) || profiles[0];
-        return p?.accessToken || null;
+      const data = JSON.parse(readFileSync(authPath, 'utf-8'));
+
+      // format: { profiles: { "openai:default": { key: "sk-..." } } }
+      if (data.profiles && typeof data.profiles === 'object') {
+        for (const p of Object.values(data.profiles)) {
+          if (p.key) return p.key;
+          if (p.accessToken) return p.accessToken;
+        }
       }
-      return profiles.accessToken || null;
+
+      // format: [{ accessToken: "..." }]
+      if (Array.isArray(data)) {
+        const p = data.find(p => p.accessToken || p.key);
+        return p?.accessToken || p?.key || null;
+      }
+
+      return data.accessToken || data.key || null;
     } catch { return null; }
   }
 
