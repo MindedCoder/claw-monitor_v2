@@ -126,7 +126,7 @@ export default function createCodexPanel(config) {
     } else {
       const rows = [];
       if (state.primary) {
-        const pct = Math.round(state.primary.usedPercent * 100);
+        const pct = Math.round(state.primary.usedPercent);
         const resetTime = new Date(state.primary.resetAt).toLocaleTimeString('zh-CN', { hour12: false });
         rows.push(`
           <div class="usage-row">
@@ -139,7 +139,7 @@ export default function createCodexPanel(config) {
           <div class="card-time">重置: ${resetTime}</div>`);
       }
       if (state.secondary) {
-        const pct = Math.round(state.secondary.usedPercent * 100);
+        const pct = Math.round(state.secondary.usedPercent);
         const resetTime = new Date(state.secondary.resetAt).toLocaleTimeString('zh-CN', { hour12: false });
         rows.push(`
           <div class="usage-row">

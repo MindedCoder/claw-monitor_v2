@@ -40,6 +40,11 @@ done
 for pid in $(pgrep -f "frpc.*${PROJECT_NAME}" 2>/dev/null || true); do
   kill -9 "$pid" 2>/dev/null || true
 done
+# also kill anything on monitor port
+PORT_CFG=$(grep -o '"port":[[:space:]]*[0-9]*' "${INSTALL_DIR}/data/config.json" 2>/dev/null | head -1 | grep -o '[0-9]*' || echo "9001")
+for pid in $(lsof -ti ":${PORT_CFG}" 2>/dev/null || true); do
+  kill -9 "$pid" 2>/dev/null || true
+done
 sleep 2
 
 # 4. restart via install.sh

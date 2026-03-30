@@ -231,7 +231,20 @@ if [ -f "$PID_FILE" ]; then
 fi
 for stale_pid in $(pgrep -f "node.*claw-monitor_v2/src/index" 2>/dev/null || true); do
   echo "[INFO] Killing stale node process $stale_pid..."
-  kill "$stale_pid" 2>/dev/null || true
+  kill -9 "$stale_pid" 2>/dev/null || true
+done
+
+# wait for port to be released
+PORT_CFG=$(grep -o '"port":[[:space:]]*[0-9]*' "$CONFIG_FILE" 2>/dev/null | head -1 | grep -o '[0-9]*' || echo "9001")
+for i in 1 2 3 4 5; do
+  PORT_PID=$(lsof -ti ":${PORT_CFG}" 2>/dev/null || true)
+  if [ -n "$PORT_PID" ]; then
+    echo "[INFO] Port ${PORT_CFG} occupied by PID ${PORT_PID}, killing..."
+    echo "$PORT_PID" | xargs kill -9 2>/dev/null || true
+    sleep 1
+  else
+    break
+  fi
 done
 
 # 6. write startup wrapper script
