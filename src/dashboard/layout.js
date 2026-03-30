@@ -92,16 +92,12 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 const JS = `
 async function triggerPing() {
   try {
-    const r = await fetch(BASE+'/api/ping/trigger');
-    const d = await r.json();
-    console.log('ping result:', d);
-    location.reload();
+    await fetch(BASE+'/api/ping/trigger');
   } catch(e) { console.error(e); }
 }
 async function refreshCodex() {
   try {
     await fetch(BASE+'/api/codex-usage/refresh');
-    location.reload();
   } catch(e) { console.error(e); }
 }
 setInterval(async () => {
