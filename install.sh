@@ -56,36 +56,6 @@ if [ ! -f "$CONFIG_FILE" ]; then
   read -p "监控面板端口 [9001]: " INPUT_PORT
   INPUT_PORT="${INPUT_PORT:-9001}"
 
-  # frpc
-  echo ""
-  echo "--- frpc 隧道配置 ---"
-  read -p "frpc 服务器地址 (如 1.2.3.4): " INPUT_FRPC_ADDR
-  read -p "frpc 服务器端口 [7000]: " INPUT_FRPC_PORT
-  INPUT_FRPC_PORT="${INPUT_FRPC_PORT:-7000}"
-  read -p "frpc 认证 token (无则留空): " INPUT_FRPC_TOKEN
-
-  read -p "frpc 代理名称 [monitor]: " INPUT_PROXY_NAME
-  INPUT_PROXY_NAME="${INPUT_PROXY_NAME:-monitor}"
-  read -p "frpc 代理类型 (http/tcp) [http]: " INPUT_PROXY_TYPE
-  INPUT_PROXY_TYPE="${INPUT_PROXY_TYPE:-http}"
-  read -p "frpc 本地端口 [${INPUT_PORT}]: " INPUT_PROXY_LOCAL_PORT
-  INPUT_PROXY_LOCAL_PORT="${INPUT_PROXY_LOCAL_PORT:-$INPUT_PORT}"
-
-  INPUT_PROXY_EXTRA=""
-  if [ "$INPUT_PROXY_TYPE" = "http" ]; then
-    read -p "frpc 自定义域名 (如 claw.example.com): " INPUT_CUSTOM_DOMAIN
-    if [ -n "$INPUT_CUSTOM_DOMAIN" ]; then
-      INPUT_PROXY_EXTRA="\"customDomains\": [\"${INPUT_CUSTOM_DOMAIN}\"]"
-    else
-      INPUT_PROXY_EXTRA="\"customDomains\": []"
-    fi
-  else
-    read -p "frpc 远程端口: " INPUT_REMOTE_PORT
-    if [ -n "$INPUT_REMOTE_PORT" ]; then
-      INPUT_PROXY_EXTRA="\"remotePort\": ${INPUT_REMOTE_PORT}"
-    fi
-  fi
-
   # auth gateway
   echo ""
   echo "--- 认证网关配置 ---"
@@ -170,16 +140,21 @@ if [ ! -f "$CONFIG_FILE" ]; then
 
   "frpc": {
     "version": "0.61.1",
-    "serverAddr": "${INPUT_FRPC_ADDR}",
-    "serverPort": ${INPUT_FRPC_PORT},
-    "token": "${INPUT_FRPC_TOKEN}",
+    "serverAddr": "8.135.54.217",
+    "serverPort": 7000,
+    "loginFailExit": false,
+    "transport": {
+      "heartbeatInterval": 10,
+      "heartbeatTimeout": 30,
+      "protocol": "tcp"
+    },
     "proxies": [
       {
-        "name": "${INPUT_PROXY_NAME}",
-        "type": "${INPUT_PROXY_TYPE}",
+        "name": "monitor",
+        "type": "tcp",
         "localIP": "127.0.0.1",
-        "localPort": ${INPUT_PROXY_LOCAL_PORT},
-        ${INPUT_PROXY_EXTRA}
+        "localPort": ${INPUT_PORT},
+        "remotePort": 19090
       }
     ]
   },

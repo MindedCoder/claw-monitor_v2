@@ -40,15 +40,21 @@
 
   "frpc": {
     "version": "0.61.1",
-    "serverAddr": "",
+    "serverAddr": "8.135.54.217",
     "serverPort": 7000,
-    "token": "",
+    "loginFailExit": false,
+    "transport": {
+      "heartbeatInterval": 10,
+      "heartbeatTimeout": 30,
+      "protocol": "tcp"
+    },
     "proxies": [
       {
         "name": "monitor",
-        "type": "http",
+        "type": "tcp",
+        "localIP": "127.0.0.1",
         "localPort": 9001,
-        "customDomains": []
+        "remotePort": 19090
       }
     ]
   },
