@@ -39,7 +39,6 @@
   },
 
   "frpc": {
-    "enabled": false,
     "version": "0.61.1",
     "serverAddr": "",
     "serverPort": 7000,

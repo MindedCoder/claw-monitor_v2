@@ -151,8 +151,7 @@ bash install.sh
   },
 
   "frpc": {
-    "enabled": false,              // 开启 frpc 隧道
-    "serverAddr": "1.2.3.4",
+    "serverAddr": "1.2.3.4",       // 配置后自动启动 frpc
     "serverPort": 7000,
     "proxies": [
       { "name": "monitor", "type": "http", "localPort": 9001, "customDomains": ["claw.example.com"] }

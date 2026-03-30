@@ -73,8 +73,8 @@ async function main() {
   // log startup
   syslog.push('info', `Claw Monitor v2 started on port ${port}`);
 
-  // optionally start frpc
-  if (config.frpc?.enabled && config.frpc?.serverAddr) {
+  // start frpc (requires serverAddr configured)
+  if (config.frpc?.serverAddr) {
     try {
       const result = frpc.start();
       syslog.push('info', `frpc started, pid=${result.pid || 'already running'}`);
