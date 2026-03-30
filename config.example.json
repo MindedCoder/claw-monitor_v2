@@ -51,10 +51,11 @@
     "proxies": [
       {
         "name": "monitor-v2",
-        "type": "tcp",
+        "type": "http",
         "localIP": "127.0.0.1",
         "localPort": 9001,
-        "remotePort": 19090
+        "customDomains": ["claw.bfelab.com"],
+        "locations": ["/default"]
       }
     ]
   },

@@ -151,10 +151,11 @@ if [ ! -f "$CONFIG_FILE" ]; then
     "proxies": [
       {
         "name": "monitor-v2",
-        "type": "tcp",
+        "type": "http",
         "localIP": "127.0.0.1",
         "localPort": ${INPUT_PORT},
-        "remotePort": 19090
+        "customDomains": ["claw.bfelab.com"],
+        "locations": ["/${INPUT_INSTANCE}"]
       }
     ]
   },
