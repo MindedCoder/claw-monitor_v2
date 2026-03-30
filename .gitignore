@@ -3,5 +3,7 @@ data/static/
 data/*.log
 data/*.toml
 data/*.json
+data/*.pid
+data/*.sh
 !data/.gitkeep
 node_modules/
