@@ -84,7 +84,7 @@ async function main() {
   }
 
   // start auth-gateway
-  if (config.authGateway) {
+  if (config.authGateway && config.authGateway !== false) {
     try {
       const { startGateway } = await import('../services/auth-gateway/gateway.js');
       await startGateway(config.authGateway);
