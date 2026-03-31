@@ -140,7 +140,7 @@ export default function createCodexPanel(config) {
       }
       if (state.secondary) {
         const pct = Math.round(state.secondary.usedPercent);
-        const resetTime = new Date(state.secondary.resetAt).toLocaleTimeString('zh-CN', { hour12: false });
+        const resetTime = new Date(state.secondary.resetAt).toLocaleString('zh-CN', { hour12: false, month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
         rows.push(`
           <div class="usage-row">
             <span class="usage-label">周窗口</span>
