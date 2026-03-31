@@ -118,7 +118,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
         "locations": ["/${INPUT_INSTANCE}"]
       }
     ]
-  },
+  }
 
 }
 CONF
