@@ -102,7 +102,7 @@ export default function createLogsPanel(config) {
     return `
       <div class="panel logs-panel">
         <div class="panel-header">
-          <h3>日志流</h3>
+          <h3>OpenClaw 日志</h3>
           <span class="log-count">${entries.length} 条</span>
         </div>
         <div class="log-table-wrap">

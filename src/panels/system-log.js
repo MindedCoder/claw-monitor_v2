@@ -58,7 +58,7 @@ export default function createSystemLogPanel() {
     return `
       <div class="panel syslog-panel">
         <div class="panel-header">
-          <h3>系统日志</h3>
+          <h3>接口调用日志</h3>
           <span class="log-count">${entries.length} 条</span>
         </div>
         <div class="log-table-wrap">
