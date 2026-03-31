@@ -238,8 +238,8 @@ if [ "$(uname -s)" = "Darwin" ]; then
 
   <key>ProgramArguments</key>
   <array>
-    <string>bash</string>
-    <string>${STARTUP_SCRIPT}</string>
+    <string>${NODE_BIN}</string>
+    <string>${INSTALL_DIR}/src/index.js</string>
   </array>
 
   <key>WorkingDirectory</key>
@@ -263,7 +263,7 @@ if [ "$(uname -s)" = "Darwin" ]; then
   <key>EnvironmentVariables</key>
   <dict>
     <key>PATH</key>
-    <string>/usr/local/bin:/opt/homebrew/bin:${HOME}/bin:${HOME}/.nvm/versions/node/$(ls "${HOME}/.nvm/versions/node/" 2>/dev/null | sort -V | tail -1)/bin:/usr/bin:/bin</string>
+    <string>/usr/local/bin:/opt/homebrew/bin:${HOME}/bin:$(dirname "${NODE_BIN}"):/usr/bin:/bin</string>
   </dict>
 </dict>
 </plist>
