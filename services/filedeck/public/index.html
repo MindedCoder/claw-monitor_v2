@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Filedeck Viewer</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="app">
+      <header class="topbar">
+        <h1 id="app-title">Filedeck</h1>
+      </header>
+
+      <div class="stack">
+        <section class="card browser">
+          <div class="section-head">
+            <h2 class="section-title">目录</h2>
+            <button class="back-button" id="back-button" type="button">返回上一级</button>
+          </div>
+          <div id="current-path" class="path"></div>
+          <div class="folder-grid" id="entries">
+            <div class="loading">正在加载目录...</div>
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <div class="drawer-overlay" id="drawer-overlay"></div>
+    <section class="drawer" id="preview-drawer" aria-hidden="true">
+      <div class="drawer-panel">
+        <div class="drawer-handle"></div>
+        <div class="drawer-head">
+          <div class="drawer-actions" id="drawer-actions"></div>
+          <button class="drawer-close" id="drawer-close" type="button">×</button>
+        </div>
+        <div class="drawer-body" id="drawer-body">
+          <div class="hint">支持 `json`、`md`、`pdf`、图片和常见文本文件。</div>
+        </div>
+      </div>
+    </section>
+
+    <script src="app.js"></script>
+  </body>
+</html>

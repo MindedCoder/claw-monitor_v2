@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_NAME="claw-monitor_v2"
-INSTALL_DIR="${HOME}/${PROJECT_NAME}"
+INSTALL_DIR="${HOME}/bfe/${PROJECT_NAME}"
 PID_FILE="${INSTALL_DIR}/data/monitor.pid"
 PLIST_LABEL="com.claw-monitor-v2.monitor"
 PLIST_FILE="${HOME}/Library/LaunchAgents/${PLIST_LABEL}.plist"
@@ -29,16 +29,24 @@ fi
 NODE_VER=$("$NODE_BIN" -e "console.log(process.version)")
 echo "[OK] Node.js found: $NODE_BIN ($NODE_VER)"
 
-# 2. copy project files if not running from install dir
+# 2. ensure running from install dir
 if [ "$SCRIPT_DIR" != "$INSTALL_DIR" ]; then
-  echo "[INFO] Copying project to ${INSTALL_DIR}..."
-  mkdir -p "$INSTALL_DIR"
-  rsync -a --exclude='data/config.json' --exclude='data/static' --exclude='data/*.log' --exclude='data/*.pid' --exclude='node_modules' "$SCRIPT_DIR/" "$INSTALL_DIR/"
-else
-  echo "[INFO] Already in install directory."
+  echo "[ERROR] Please clone the repo directly to ${INSTALL_DIR} and run install.sh from there."
+  echo "        git clone <repo-url> ${INSTALL_DIR}"
+  exit 1
 fi
 
-# 3. create data dir & config
+# 3. install filedeck dependencies
+if [ -f "${INSTALL_DIR}/services/filedeck/package.json" ]; then
+  echo "[INFO] Installing filedeck dependencies..."
+  (cd "${INSTALL_DIR}/services/filedeck" && "$NODE_BIN" "$(dirname "$NODE_BIN")/npm" install --production 2>&1) || {
+    # fallback: try npm from PATH
+    (cd "${INSTALL_DIR}/services/filedeck" && npm install --production 2>&1) || echo "[WARN] filedeck npm install failed, filedeck may not work"
+  }
+  echo "[OK] filedeck dependencies installed"
+fi
+
+# 4. create data dir & config
 mkdir -p "${INSTALL_DIR}/data/static"
 
 # ========== interactive config ==========

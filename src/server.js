@@ -1,7 +1,17 @@
 import http from 'node:http';
+import { createRequire } from 'node:module';
 import { parseUrl, sendJson, sendHtml, send404, sendText } from './lib/http-helpers.js';
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { join, extname } from 'node:path';
+
+const require = createRequire(import.meta.url);
+
+let filedeckApp;
+try {
+  filedeckApp = require('../services/filedeck/server.js');
+} catch {
+  // filedeck not available, skip
+}
 
 const MIME = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
@@ -31,6 +41,18 @@ export function createServer(config, routes, onLog) {
     // strip basePath prefix (e.g. /huangcan/api/ping → /api/ping)
     if (basePath && path.startsWith(basePath)) {
       path = path.slice(basePath.length) || '/';
+    }
+
+    // delegate /filedeck requests to filedeck express app
+    if (filedeckApp && path.startsWith('/filedeck')) {
+      // redirect /filedeck to /filedeck/ so relative paths work
+      if (path === '/filedeck') {
+        const location = basePath + '/filedeck/';
+        res.writeHead(301, { Location: location });
+        return res.end();
+      }
+      req.url = path.slice('/filedeck'.length) || '/';
+      return filedeckApp(req, res);
     }
 
     const key = `${req.method} ${path}`;
