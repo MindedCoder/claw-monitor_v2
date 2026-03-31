@@ -1,0 +1,30 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frps-service
+  namespace: bfe
+spec:
+  selector:
+    app: frps
+  ports:
+    - name: bind
+      port: 7000
+      targetPort: 7000
+    - name: vhost
+      port: 19090
+      targetPort: 19090
+---
+# LoadBalancer 类型 Service，用于暴露 7000 端口给外部 frpc 连接
+apiVersion: v1
+kind: Service
+metadata:
+  name: frps-external
+  namespace: bfe
+spec:
+  type: LoadBalancer
+  selector:
+    app: frps
+  ports:
+    - name: bind
+      port: 7000
+      targetPort: 7000

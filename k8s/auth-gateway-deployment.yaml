@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-gateway
+  namespace: bfe
+  labels:
+    app: auth-gateway
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth-gateway
+  template:
+    metadata:
+      labels:
+        app: auth-gateway
+    spec:
+      containers:
+        - name: auth-gateway
+          image: bfelab-registry.cn-hangzhou.cr.aliyuncs.com/bfelab/auth-gateway:latest
+          ports:
+            - containerPort: 4180
+          env:
+            - name: AUTH_CONFIG_PATH
+              value: /etc/auth-gateway/config.json
+          volumeMounts:
+            - name: config
+              mountPath: /etc/auth-gateway/config.json
+              subPath: config.json
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 4180
+            initialDelaySeconds: 5
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 4180
+            initialDelaySeconds: 3
+            periodSeconds: 10
+      imagePullSecrets:
+        - name: bfe-qiye
+      volumes:
+        - name: config
+          configMap:
+            name: auth-gateway-config

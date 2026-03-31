@@ -1,0 +1,42 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frps
+  namespace: bfe
+  labels:
+    app: frps
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: frps
+  template:
+    metadata:
+      labels:
+        app: frps
+    spec:
+      containers:
+        - name: frps
+          image: bfelab-registry.cn-hangzhou.cr.aliyuncs.com/bfelab/frps:latest
+          ports:
+            - name: bind
+              containerPort: 7000
+            - name: vhost
+              containerPort: 19090
+          volumeMounts:
+            - name: config
+              mountPath: /etc/frp/frps.toml
+              subPath: frps.toml
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+      imagePullSecrets:
+        - name: bfe-qiye
+      volumes:
+        - name: config
+          configMap:
+            name: frps-config

@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-gateway
+  namespace: bfe
+spec:
+  selector:
+    app: auth-gateway
+  ports:
+    - port: 4180
+      targetPort: 4180

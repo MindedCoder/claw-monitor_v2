@@ -1,0 +1,94 @@
+# ── Ingress 1: /auth/ 路径 → auth-gateway，不做认证 ──
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: auth-gateway-ingress
+  namespace: bfe
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - claw.bfelab.com
+      secretName: bfefree
+  rules:
+    - host: claw.bfelab.com
+      http:
+        paths:
+          - path: /auth/
+            pathType: Prefix
+            backend:
+              service:
+                name: auth-gateway
+                port:
+                  number: 4180
+---
+# ── Ingress 2: API/static/healthz 路径 → frps，不做认证（通配所有实例） ──
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: claw-monitor-api-ingress
+  namespace: bfe
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - claw.bfelab.com
+      secretName: bfefree
+  rules:
+    - host: claw.bfelab.com
+      http:
+        paths:
+          - path: /[^/]+/api/
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: frps-service
+                port:
+                  number: 19090
+          - path: /[^/]+/static/
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: frps-service
+                port:
+                  number: 19090
+          - path: /[^/]+/healthz
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: frps-service
+                port:
+                  number: 19090
+---
+# ── Ingress 3: 其余路径 → frps，受 auth-gateway 保护 ──
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: claw-monitor-ingress
+  namespace: bfe
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/auth-url: "http://auth-gateway.bfe.svc.cluster.local:4180/auth/check"
+    nginx.ingress.kubernetes.io/auth-signin: "https://claw.bfelab.com/auth/login?rd=$escaped_request_uri"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - claw.bfelab.com
+      secretName: bfefree
+  rules:
+    - host: claw.bfelab.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frps-service
+                port:
+                  number: 19090

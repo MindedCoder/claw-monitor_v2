@@ -1,0 +1,9 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: frps-config
+  namespace: bfe
+data:
+  frps.toml: |
+    bindPort = 7000
+    vhostHTTPPort = 19090
