@@ -2,7 +2,7 @@
 set -euo pipefail
 
 PROJECT_NAME="claw-monitor_v2"
-INSTALL_DIR="${HOME}/bfe/${PROJECT_NAME}"
+INSTALL_DIR="${HOME}/.bfe/${PROJECT_NAME}"
 PID_FILE="${INSTALL_DIR}/data/monitor.pid"
 PLIST_LABEL="com.claw-monitor-v2.monitor"
 PLIST_FILE="${HOME}/Library/LaunchAgents/${PLIST_LABEL}.plist"
