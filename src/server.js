@@ -51,7 +51,8 @@ export function createServer(config, routes, onLog) {
         res.writeHead(301, { Location: location });
         return res.end();
       }
-      req.url = path.slice('/filedeck'.length) || '/';
+      const forwardedPath = path.slice('/filedeck'.length) || '/';
+      req.url = `${forwardedPath}${url.search || ''}`;
       return filedeckApp(req, res);
     }
 

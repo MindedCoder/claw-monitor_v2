@@ -49,28 +49,38 @@ const MIME_TYPES = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
-const pathToId = new Map([[ROOT_PATH, ROOT_ID]]);
-const idToPath = new Map([[ROOT_ID, ROOT_PATH]]);
 const directoryPayloadCache = new Map();
 const filePayloadCache = new Map();
-let nextNodeId = 1;
 
 function getOrCreateId(filePath) {
-  if (pathToId.has(filePath)) {
-    return pathToId.get(filePath);
+  if (filePath === ROOT_PATH) {
+    return ROOT_ID;
   }
-
-  const id = `n${nextNodeId++}`;
-  pathToId.set(filePath, id);
-  idToPath.set(id, filePath);
-  return id;
+  const relativePath = path.relative(ROOT_PATH, filePath);
+  return `n:${encodeURIComponent(relativePath)}`;
 }
 
 function resolveNodePath(nodeId) {
-  const filePath = idToPath.get(nodeId || ROOT_ID);
-  if (!filePath) {
+  if (!nodeId || nodeId === ROOT_ID) {
+    return ROOT_PATH;
+  }
+
+  if (typeof nodeId !== 'string' || !nodeId.startsWith('n:')) {
     throw new Error('Unknown node id');
   }
+
+  let relativePath;
+  try {
+    relativePath = decodeURIComponent(nodeId.slice(2));
+  } catch (_error) {
+    throw new Error('Unknown node id');
+  }
+
+  const filePath = path.resolve(ROOT_PATH, relativePath);
+  if (filePath !== ROOT_PATH && !filePath.startsWith(`${ROOT_PATH}${path.sep}`)) {
+    throw new Error('Invalid node id');
+  }
+
   return filePath;
 }
 
@@ -191,7 +201,6 @@ function getPreviewKind(filePath) {
 }
 
 const app = express();
-
 app.use(express.static(PUBLIC_DIR));
 
 app.get('/api/tree', (_request, response) => {

@@ -24,6 +24,22 @@ async function fetchJson(url) {
   return payload;
 }
 
+function getBasePath() {
+  const pathname = window.location.pathname || '/';
+  const normalizedPath = pathname.endsWith('/') ? pathname.slice(0, -1) : pathname;
+  const marker = '/filedeck';
+  const index = normalizedPath.lastIndexOf(marker);
+  if (index === -1) {
+    return '';
+  }
+  return normalizedPath.slice(0, index + marker.length);
+}
+
+function resolveServiceUrl(path) {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return `${getBasePath()}${normalizedPath}`;
+}
+
 async function ensureDirectoryLoaded(id) {
   if (directoryCache.has(id)) {
     return directoryCache.get(id);
@@ -33,7 +49,9 @@ async function ensureDirectoryLoaded(id) {
     return pendingDirectoryRequests.get(id);
   }
 
-  const url = id === 'root' ? 'api/tree' : 'api/node?id=' + encodeURIComponent(id);
+  const url = id === 'root'
+    ? resolveServiceUrl('/api/tree')
+    : resolveServiceUrl('/api/node?id=' + encodeURIComponent(id));
   const request = fetchJson(url)
     .then((directory) => {
       directoryCache.set(directory.id, directory);
@@ -242,7 +260,8 @@ function renderDirectory(directory) {
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'entry' + (child.id === activeFileId ? ' active' : '');
-    card.addEventListener('click', async () => {
+    card.addEventListener('click', async (event) => {
+      event.preventDefault();
       if (child.type === 'directory') {
         await navigateTo(child.id);
       } else {
@@ -291,7 +310,7 @@ async function previewFile(id) {
     if (!pendingFileRequests.has(id) && !fileContentCache.has(id)) {
       pendingFileRequests.set(
         id,
-        fetchJson('api/file?id=' + encodeURIComponent(id))
+        fetchJson(resolveServiceUrl('/api/file?id=' + encodeURIComponent(id)))
           .then((file) => {
             fileContentCache.set(id, file);
             pendingFileRequests.delete(id);
@@ -318,8 +337,12 @@ async function navigateTo(id) {
   entries.innerHTML = '<div class="loading">正在加载目录...</div>';
   activeDirectoryId = id;
   activeFileId = null;
-  const directory = await ensureDirectoryLoaded(id);
-  renderDirectory(directory);
+  try {
+    const directory = await ensureDirectoryLoaded(id);
+    renderDirectory(directory);
+  } catch (error) {
+    entries.innerHTML = `<div class="empty">${escapeHtml(error.message || '目录加载失败')}</div>`;
+  }
 }
 
 async function boot() {
