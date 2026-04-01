@@ -349,11 +349,16 @@ async function boot() {
   try {
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
     document.getElementById('drawer-close').addEventListener('click', closeDrawer);
-    await navigateTo('root');
-    const rootDirectory = directoryCache.get('root');
+    const rootDirectory = await ensureDirectoryLoaded('root');
     if (rootDirectory) {
       document.getElementById('app-title').textContent = rootDirectory.name;
       document.title = `${rootDirectory.name} Viewer`;
+      if (rootDirectory.defaultDirectoryId && rootDirectory.defaultDirectoryId !== rootDirectory.id) {
+        await navigateTo(rootDirectory.defaultDirectoryId);
+      } else {
+        activeDirectoryId = rootDirectory.id;
+        renderDirectory(rootDirectory);
+      }
     }
   } catch (error) {
     document.getElementById('entries').innerHTML = `<div class="empty">${escapeHtml(error.message)}</div>`;

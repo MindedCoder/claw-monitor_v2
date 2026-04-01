@@ -9,6 +9,7 @@ const ROOT_PATH = path.resolve(process.env.ROOT_PATH || path.join(os.homedir(), 
 const PUBLIC_DIR = path.join(__dirname, 'public');
 const ROOT_ID = 'root';
 const ROOT_LABEL = process.env.APP_TITLE || path.basename(ROOT_PATH) || 'filedeck';
+const DEFAULT_ENTRY_NAME = process.env.DEFAULT_ENTRY_NAME || 'workspace';
 
 const TEXT_EXTENSIONS = new Set([
   '.txt',
@@ -133,6 +134,7 @@ function readEntry(currentPath) {
 function readChildren(directoryPath) {
   return fs
     .readdirSync(directoryPath, { withFileTypes: true })
+    .filter((entry) => !entry.name.startsWith('.'))
     .sort((left, right) => {
       if (left.isDirectory() !== right.isDirectory()) {
         return left.isDirectory() ? -1 : 1;
@@ -184,6 +186,11 @@ function getDirectoryPayload(directoryPath) {
     children: readChildren(directoryPath),
   };
 
+  if (directoryPath === ROOT_PATH) {
+    const defaultDirectoryPath = getDefaultDirectoryPath();
+    payload.defaultDirectoryId = getOrCreateId(defaultDirectoryPath);
+  }
+
   directoryPayloadCache.set(directoryPath, { cacheKey, payload });
   return payload;
 }
@@ -198,6 +205,17 @@ function getPreviewKind(filePath) {
   if (isTextPreviewable(filePath)) return 'text';
   if (mimeType.startsWith('image/')) return 'image';
   return 'download';
+}
+
+function getDefaultDirectoryPath() {
+  const candidatePath = path.join(ROOT_PATH, DEFAULT_ENTRY_NAME);
+  try {
+    if (fs.statSync(candidatePath).isDirectory()) {
+      return candidatePath;
+    }
+  } catch (_error) {
+  }
+  return ROOT_PATH;
 }
 
 const app = express();
