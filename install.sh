@@ -29,7 +29,26 @@ fi
 NODE_VER=$("$NODE_BIN" -e "console.log(process.version)")
 echo "[OK] Node.js found: $NODE_BIN ($NODE_VER)"
 
-# 2. if not running from install dir, create symlink
+# 2. stop existing processes first (before symlink setup, to prevent KeepAlive from recreating dirs)
+if [ "$(uname -s)" = "Darwin" ] && [ -f "$PLIST_FILE" ]; then
+  launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
+fi
+# stop keepalive / node processes
+if [ -f "${INSTALL_DIR}/data/monitor.pid" ] 2>/dev/null; then
+  OLD_PID=$(cat "${INSTALL_DIR}/data/monitor.pid" 2>/dev/null || true)
+  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
+    echo "[INFO] Stopping existing monitor (PID: $OLD_PID)..."
+    kill "$OLD_PID" 2>/dev/null || true
+    pkill -P "$OLD_PID" 2>/dev/null || true
+    sleep 2
+  fi
+fi
+for stale_pid in $(pgrep -f "node.*claw-monitor_v2/src/index" 2>/dev/null || true); do
+  echo "[INFO] Killing stale node process $stale_pid..."
+  kill -9 "$stale_pid" 2>/dev/null || true
+done
+
+# 3. if not running from install dir, create symlink
 if [ "$SCRIPT_DIR" != "$INSTALL_DIR" ]; then
   mkdir -p "$(dirname "$INSTALL_DIR")"
   if [ -L "$INSTALL_DIR" ]; then
@@ -42,9 +61,15 @@ if [ "$SCRIPT_DIR" != "$INSTALL_DIR" ]; then
       echo "[OK] Symlink already correct: ${INSTALL_DIR} -> ${SCRIPT_DIR}"
     fi
   elif [ -d "$INSTALL_DIR" ]; then
-    echo "[ERROR] ${INSTALL_DIR} already exists as a real directory."
-    echo "        Remove it first if you want to install from ${SCRIPT_DIR}"
-    exit 1
+    echo "[WARN] ${INSTALL_DIR} exists as a real directory, replacing with symlink..."
+    # preserve data dir if it has user config
+    if [ -d "${INSTALL_DIR}/data" ]; then
+      echo "[INFO] Backing up existing data dir to ${SCRIPT_DIR}/data"
+      cp -rn "${INSTALL_DIR}/data/" "${SCRIPT_DIR}/data/" 2>/dev/null || true
+    fi
+    rm -rf "$INSTALL_DIR"
+    ln -s "$SCRIPT_DIR" "$INSTALL_DIR"
+    echo "[OK] Replaced with symlink: ${INSTALL_DIR} -> ${SCRIPT_DIR}"
   else
     echo "[INFO] Creating symlink: ${INSTALL_DIR} -> ${SCRIPT_DIR}"
     ln -s "$SCRIPT_DIR" "$INSTALL_DIR"
@@ -184,27 +209,7 @@ else
   fi
 fi
 
-# 5. stop LaunchAgent first (prevent KeepAlive from respawning)
-if [ "$(uname -s)" = "Darwin" ] && [ -f "$PLIST_FILE" ]; then
-  launchctl bootout "gui/$(id -u)/${PLIST_LABEL}" 2>/dev/null || true
-fi
-
-# 6. stop existing monitor
-if [ -f "$PID_FILE" ]; then
-  OLD_PID=$(cat "$PID_FILE" 2>/dev/null || true)
-  if [ -n "$OLD_PID" ] && kill -0 "$OLD_PID" 2>/dev/null; then
-    echo "[INFO] Stopping existing monitor (PID: $OLD_PID)..."
-    kill "$OLD_PID" 2>/dev/null || true
-    pkill -P "$OLD_PID" 2>/dev/null || true
-    sleep 2
-  fi
-fi
-for stale_pid in $(pgrep -f "node.*claw-monitor_v2/src/index" 2>/dev/null || true); do
-  echo "[INFO] Killing stale node process $stale_pid..."
-  kill -9 "$stale_pid" 2>/dev/null || true
-done
-
-# wait for port to be released
+# 5. wait for port to be released
 PORT_CFG=$(grep -o '"port":[[:space:]]*[0-9]*' "$CONFIG_FILE" 2>/dev/null | head -1 | grep -o '[0-9]*' || echo "9001")
 for i in 1 2 3 4 5; do
   PORT_PID=$(lsof -ti ":${PORT_CFG}" 2>/dev/null || true)
