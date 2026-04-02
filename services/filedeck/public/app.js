@@ -345,10 +345,133 @@ async function navigateTo(id) {
   }
 }
 
+function isDrawerOpen() {
+  return document.getElementById('preview-drawer').classList.contains('open');
+}
+
+function goBack() {
+  if (isDrawerOpen()) {
+    closeDrawer();
+    return;
+  }
+  const directory = directoryCache.get(activeDirectoryId);
+  if (directory && directory.breadcrumb && directory.breadcrumb.length > 1) {
+    navigateTo(directory.breadcrumb[directory.breadcrumb.length - 2].id);
+  }
+}
+
+function openMatchModal() {
+  document.getElementById('match-overlay').classList.add('open');
+  document.getElementById('match-modal').classList.add('open');
+}
+
+function closeMatchModal() {
+  document.getElementById('match-overlay').classList.remove('open');
+  document.getElementById('match-modal').classList.remove('open');
+}
+
+async function smartMatch() {
+  const matchBody = document.getElementById('match-body');
+  let text;
+  try {
+    text = await navigator.clipboard.readText();
+  } catch (_error) {
+    matchBody.innerHTML = '<div class="empty">无法读取剪贴板，请授权后重试。</div>';
+    openMatchModal();
+    return;
+  }
+
+  if (!text || !text.trim()) {
+    matchBody.innerHTML = '<div class="empty">剪贴板为空。</div>';
+    openMatchModal();
+    return;
+  }
+
+  matchBody.innerHTML = '<div class="loading">正在识别路径...</div>';
+  openMatchModal();
+
+  try {
+    const response = await fetch(resolveServiceUrl('/api/match-paths'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await response.json();
+    if (!data.matches || data.matches.length === 0) {
+      matchBody.innerHTML = '<div class="empty">未识别到匹配的路径。</div>';
+      return;
+    }
+
+    matchBody.innerHTML = '';
+    for (const item of data.matches) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'match-item';
+
+      const icon = document.createElement('span');
+      icon.className = 'match-icon';
+      icon.textContent = item.type === 'directory' ? '\uD83D\uDCC1' : '\uD83D\uDCC4';
+
+      const label = document.createElement('span');
+      label.className = 'match-path';
+      label.textContent = item.displayPath;
+
+      btn.appendChild(icon);
+      btn.appendChild(label);
+      btn.addEventListener('click', async () => {
+        closeMatchModal();
+        if (item.type === 'directory') {
+          await navigateTo(item.id);
+        } else {
+          await navigateTo(item.parentId);
+          await previewFile(item.id);
+        }
+      });
+      matchBody.appendChild(btn);
+    }
+  } catch (error) {
+    matchBody.innerHTML = '<div class="empty">' + escapeHtml(error.message || '识别失败') + '</div>';
+  }
+}
+
+function initEdgeSwipe() {
+  const edgeZone = 24;
+  const minDistance = 50;
+  let startX = 0;
+  let startY = 0;
+  let fromEdge = false;
+
+  document.addEventListener('touchstart', (e) => {
+    const x = e.touches[0].clientX;
+    const w = window.innerWidth;
+    fromEdge = x <= edgeZone || x >= w - edgeZone;
+    if (fromEdge) {
+      startX = x;
+      startY = e.touches[0].clientY;
+    }
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    if (!fromEdge) return;
+    fromEdge = false;
+    const endX = e.changedTouches[0].clientX;
+    const endY = e.changedTouches[0].clientY;
+    const dx = endX - startX;
+    const dy = Math.abs(endY - startY);
+    if (Math.abs(dx) > minDistance && dy < Math.abs(dx)) {
+      goBack();
+    }
+  }, { passive: true });
+}
+
 async function boot() {
   try {
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
     document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+    document.getElementById('smart-match').addEventListener('click', smartMatch);
+    document.getElementById('match-overlay').addEventListener('click', closeMatchModal);
+    document.getElementById('match-close').addEventListener('click', closeMatchModal);
+    initEdgeSwipe();
     const rootDirectory = await ensureDirectoryLoaded('root');
     if (rootDirectory) {
       document.getElementById('app-title').textContent = rootDirectory.name;

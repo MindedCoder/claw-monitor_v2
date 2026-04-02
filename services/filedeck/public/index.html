@@ -16,7 +16,10 @@
         <section class="card browser">
           <div class="section-head">
             <h2 class="section-title">目录</h2>
-            <button class="back-button" id="back-button" type="button">返回上一级</button>
+            <div class="head-actions">
+              <button class="back-button" id="smart-match" type="button">智能识别</button>
+              <button class="back-button" id="back-button" type="button">返回上一级</button>
+            </div>
           </div>
           <div id="current-path" class="path"></div>
           <div class="folder-grid" id="entries">
@@ -25,6 +28,15 @@
         </section>
       </div>
     </main>
+
+    <div class="match-overlay" id="match-overlay"></div>
+    <div class="match-modal" id="match-modal">
+      <div class="match-header">
+        <span class="match-title">识别结果</span>
+        <button class="drawer-close" id="match-close" type="button">&times;</button>
+      </div>
+      <div class="match-body" id="match-body"></div>
+    </div>
 
     <div class="drawer-overlay" id="drawer-overlay"></div>
     <section class="drawer" id="preview-drawer" aria-hidden="true">
