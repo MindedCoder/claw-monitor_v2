@@ -370,25 +370,36 @@ function closeMatchModal() {
   document.getElementById('match-modal').classList.remove('open');
 }
 
-async function smartMatch() {
-  const matchBody = document.getElementById('match-body');
-  let text;
-  try {
-    text = await navigator.clipboard.readText();
-  } catch (_error) {
-    matchBody.innerHTML = '<div class="empty">无法读取剪贴板，请授权后重试。</div>';
-    openMatchModal();
-    return;
-  }
+function showPasteInput(matchBody) {
+  matchBody.innerHTML = '';
+  const hint = document.createElement('div');
+  hint.className = 'empty';
+  hint.textContent = '请粘贴包含路径的文本：';
+  hint.style.marginBottom = '10px';
 
-  if (!text || !text.trim()) {
-    matchBody.innerHTML = '<div class="empty">剪贴板为空。</div>';
-    openMatchModal();
-    return;
-  }
+  const textarea = document.createElement('textarea');
+  textarea.className = 'match-textarea';
+  textarea.rows = 3;
+  textarea.placeholder = '长按粘贴内容...';
 
+  const confirmBtn = document.createElement('button');
+  confirmBtn.type = 'button';
+  confirmBtn.className = 'action';
+  confirmBtn.textContent = '识别';
+  confirmBtn.style.marginTop = '10px';
+  confirmBtn.addEventListener('click', () => {
+    const text = textarea.value;
+    if (!text || !text.trim()) return;
+    doMatch(text, matchBody);
+  });
+
+  matchBody.appendChild(hint);
+  matchBody.appendChild(textarea);
+  matchBody.appendChild(confirmBtn);
+}
+
+async function doMatch(text, matchBody) {
   matchBody.innerHTML = '<div class="loading">正在识别路径...</div>';
-  openMatchModal();
 
   try {
     const response = await fetch(resolveServiceUrl('/api/match-paths'), {
@@ -431,6 +442,22 @@ async function smartMatch() {
     }
   } catch (error) {
     matchBody.innerHTML = '<div class="empty">' + escapeHtml(error.message || '识别失败') + '</div>';
+  }
+}
+
+async function smartMatch() {
+  const matchBody = document.getElementById('match-body');
+  openMatchModal();
+
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text || !text.trim()) {
+      showPasteInput(matchBody);
+      return;
+    }
+    await doMatch(text, matchBody);
+  } catch (_error) {
+    showPasteInput(matchBody);
   }
 }
 
