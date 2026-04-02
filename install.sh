@@ -29,11 +29,26 @@ fi
 NODE_VER=$("$NODE_BIN" -e "console.log(process.version)")
 echo "[OK] Node.js found: $NODE_BIN ($NODE_VER)"
 
-# 2. ensure running from install dir
+# 2. if not running from install dir, create symlink
 if [ "$SCRIPT_DIR" != "$INSTALL_DIR" ]; then
-  echo "[ERROR] Please clone the repo directly to ${INSTALL_DIR} and run install.sh from there."
-  echo "        git clone <repo-url> ${INSTALL_DIR}"
-  exit 1
+  mkdir -p "$(dirname "$INSTALL_DIR")"
+  if [ -L "$INSTALL_DIR" ]; then
+    EXISTING_TARGET="$(readlink "$INSTALL_DIR")"
+    if [ "$EXISTING_TARGET" != "$SCRIPT_DIR" ]; then
+      echo "[INFO] Updating symlink ${INSTALL_DIR} -> ${SCRIPT_DIR}"
+      rm "$INSTALL_DIR"
+      ln -s "$SCRIPT_DIR" "$INSTALL_DIR"
+    else
+      echo "[OK] Symlink already correct: ${INSTALL_DIR} -> ${SCRIPT_DIR}"
+    fi
+  elif [ -d "$INSTALL_DIR" ]; then
+    echo "[ERROR] ${INSTALL_DIR} already exists as a real directory."
+    echo "        Remove it first if you want to install from ${SCRIPT_DIR}"
+    exit 1
+  else
+    echo "[INFO] Creating symlink: ${INSTALL_DIR} -> ${SCRIPT_DIR}"
+    ln -s "$SCRIPT_DIR" "$INSTALL_DIR"
+  fi
 fi
 
 # 3. install filedeck dependencies
