@@ -461,31 +461,20 @@ async function smartMatch() {
   }
 }
 
-function initEdgeSwipe() {
-  const edgeZone = 24;
-  const minDistance = 50;
+function initSwipeBack() {
+  const minDistance = 80;
   let startX = 0;
   let startY = 0;
-  let fromEdge = false;
 
   document.addEventListener('touchstart', (e) => {
-    const x = e.touches[0].clientX;
-    const w = window.innerWidth;
-    fromEdge = x <= edgeZone || x >= w - edgeZone;
-    if (fromEdge) {
-      startX = x;
-      startY = e.touches[0].clientY;
-    }
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
   }, { passive: true });
 
   document.addEventListener('touchend', (e) => {
-    if (!fromEdge) return;
-    fromEdge = false;
-    const endX = e.changedTouches[0].clientX;
-    const endY = e.changedTouches[0].clientY;
-    const dx = endX - startX;
-    const dy = Math.abs(endY - startY);
-    if (Math.abs(dx) > minDistance && dy < Math.abs(dx)) {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = Math.abs(e.changedTouches[0].clientY - startY);
+    if (Math.abs(dx) > minDistance && dy < Math.abs(dx) * 0.5) {
       goBack();
     }
   }, { passive: true });
@@ -498,7 +487,7 @@ async function boot() {
     document.getElementById('smart-match').addEventListener('click', smartMatch);
     document.getElementById('match-overlay').addEventListener('click', closeMatchModal);
     document.getElementById('match-close').addEventListener('click', closeMatchModal);
-    initEdgeSwipe();
+    initSwipeBack();
     const rootDirectory = await ensureDirectoryLoaded('root');
     if (rootDirectory) {
       document.getElementById('app-title').textContent = rootDirectory.name;
