@@ -1,5 +1,6 @@
-export function pageShell(instanceName, bodyHtml) {
+export function pageShell(instanceName, bodyHtml, showAll = false) {
   const basePath = instanceName ? '/' + instanceName : '';
+  const showParam = showAll ? '?show=all' : '';
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
@@ -14,7 +15,7 @@ export function pageShell(instanceName, bodyHtml) {
     <span class="version">Claw Monitor v2</span>
   </header>
   <main class="app">${bodyHtml}</main>
-  <script>const BASE='${basePath}';${JS}</script>
+  <script>const BASE='${basePath}';const SHOW_PARAM='${showParam}';${JS}</script>
 </body>
 </html>`;
 }
@@ -83,9 +84,26 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 .deploy-panel .deploy-list { list-style:none; max-height:200px; overflow-y:auto; }
 .deploy-panel .deploy-list li { padding:4px 0; border-bottom:1px solid #21262d; font-size:12px; }
 
+.claw-status-panel { grid-column: 1 / -1; }
+.claw-status-display { display:flex; align-items:center; gap:16px; padding:16px 0; }
+.claw-status-icon { width:48px; height:48px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:700; color:#fff; }
+.claw-status-icon.ok { background:#238636; }
+.claw-status-icon.fail { background:#da3633; }
+.claw-status-icon.warn { background:#9e6a03; }
+.claw-status-icon.unknown { background:#484f58; }
+.claw-status-icon.pulse { animation:pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.7;transform:scale(1.08)} }
+.claw-status-label { font-size:22px; font-weight:600; color:#c9d1d9; }
+.claw-error { color:#f85149; font-size:13px; margin:8px 0; }
+.claw-details { margin:8px 0; }
+.claw-detail-row { display:flex; gap:8px; font-size:12px; padding:2px 0; }
+.claw-detail-key { color:#8b949e; min-width:80px; }
+.claw-detail-val { color:#c9d1d9; }
+
 @media(max-width:480px) {
   .app { grid-template-columns:1fr; padding:8px; }
   .panel-cards { flex-direction:column; }
+  .claw-status-panel { grid-column: 1; }
 }
 `;
 
@@ -102,7 +120,7 @@ async function refreshCodex() {
 }
 setInterval(async () => {
   try {
-    const r = await fetch(BASE+'/api/html');
+    const r = await fetch(BASE+'/api/html'+SHOW_PARAM);
     if (r.ok) {
       const html = await r.text();
       document.querySelector('.app').innerHTML = html;
