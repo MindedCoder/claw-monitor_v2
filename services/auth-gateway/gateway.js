@@ -121,7 +121,7 @@ export async function startGateway(config) {
         const user = sid ? await sessions.get(sid, tenant.prefix) : null;
         if (user) {
           console.log(`[auth/check] OK user=${user.name}`);
-          res.writeHead(200, { 'X-Auth-User': user.name || '' });
+          res.writeHead(200, { 'X-Auth-User': encodeURIComponent(user.name || '') });
         } else {
           console.log(`[auth/check] FAIL no valid session`);
           res.writeHead(401);
