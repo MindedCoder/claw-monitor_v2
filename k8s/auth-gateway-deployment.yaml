@@ -23,6 +23,21 @@ spec:
           env:
             - name: AUTH_CONFIG_PATH
               value: /etc/auth-gateway/config.json
+            - name: MONGODB_URI
+              valueFrom:
+                secretKeyRef:
+                  name: auth-gateway-secret
+                  key: MONGODB_URI
+            - name: SMS_ACCESS_KEY_ID
+              valueFrom:
+                secretKeyRef:
+                  name: auth-gateway-secret
+                  key: SMS_ACCESS_KEY_ID
+            - name: SMS_ACCESS_KEY_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: auth-gateway-secret
+                  key: SMS_ACCESS_KEY_SECRET
           volumeMounts:
             - name: config
               mountPath: /etc/auth-gateway/config.json

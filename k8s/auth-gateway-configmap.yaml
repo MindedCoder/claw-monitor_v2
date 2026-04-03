@@ -11,12 +11,9 @@ data:
       "authProvider": "password",
       "provider": { "password": "bfelab11223" },
       "mongodb": {
-        "uri": "mongodb://root:Espresso1006!@bfelab-secondary-pub.mongodb.rds.aliyuncs.com:3717/claw?authSource=admin",
         "database": "claw"
       },
       "sms": {
-        "accessKeyId": "LTAI5tQqp3S9F7caKqkkHWXd",
-        "accessKeySecret": "7MqOH5oydVwdeML3tjoDyYiKlB8xI3",
         "signName": "BFELAB",
         "templateCode": "SMS_172005076"
       },

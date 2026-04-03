@@ -267,5 +267,20 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   } else {
     gwConfig = { port: 4180, authProvider: 'password', provider: { password: 'changeme' } };
   }
+
+  // env overrides for secrets (from K8s Secret)
+  if (process.env.MONGODB_URI) {
+    gwConfig.mongodb = gwConfig.mongodb || {};
+    gwConfig.mongodb.uri = process.env.MONGODB_URI;
+  }
+  if (process.env.SMS_ACCESS_KEY_ID) {
+    gwConfig.sms = gwConfig.sms || {};
+    gwConfig.sms.accessKeyId = process.env.SMS_ACCESS_KEY_ID;
+  }
+  if (process.env.SMS_ACCESS_KEY_SECRET) {
+    gwConfig.sms = gwConfig.sms || {};
+    gwConfig.sms.accessKeySecret = process.env.SMS_ACCESS_KEY_SECRET;
+  }
+
   startGateway(gwConfig);
 }
