@@ -7,23 +7,43 @@ data:
   config.json: |
     {
       "port": 4180,
-      "cookieName": "_auth_gw",
-      "cookieMaxAgeSec": 604800,
-      "secret": "CHANGE-ME-TO-RANDOM-STRING",
-      "authProvider": "password",                                                                                
-      "provider": { "password": "bfelab11223" },                                                                      
+      "sessionTtlMs": 604800000,
+      "authProvider": "password",
+      "provider": { "password": "bfelab11223" },
+      "mongodb": {
+        "uri": "CHANGE_ME_MONGODB_URI",
+        "database": "claw"
+      },
+      "sms": {
+        "accessKeyId": "CHANGE_ME_AK",
+        "accessKeySecret": "CHANGE_ME_SK",
+        "signName": "BFELAB",
+        "templateCode": "SMS_172005076"
+      },
       "tenants": {
-        "/bfetest": {                                                                                            
-          "authProvider": "feishu",                                                                              
-          "provider": { "appId": "cli_a9327e7bd53cdbc9", "appSecret": "nGBeMIy4os5dykHxbGp6SdRgEKxD5co3" }                                                       
-        },                                                                                                       
+        "/huangcan": {
+          "authProvider": "phone",
+          "provider": {}
+        },
+        "/jiabo": {
+          "authProvider": "password",
+          "provider": {}
+        },
+        "/xiehu": {
+          "authProvider": "phone",
+          "provider": {}
+        },
+        "/bfetest": {
+          "authProvider": "feishu",
+          "provider": { "appId": "cli_a9327e7bd53cdbc9", "appSecret": "nGBeMIy4os5dykHxbGp6SdRgEKxD5co3" }
+        },
         "/monitor": {
-          "authProvider": "feishu",                                                                                
+          "authProvider": "feishu",
           "provider": { "appId": "cli_a93bb49ab0fa1bc6", "appSecret": "QwnekxYjU4TH6OvA4MGTter5ceRFGUGZ" }
         },
         "/kai": {
-          "authProvider": "feishu",                                                                                
+          "authProvider": "feishu",
           "provider": { "appId": "cli_a941f83f4fb99cd6", "appSecret": "wSscNopYHalfGovpzUXZBh0qKxXQUzbb" }
-        }                                                                                                       
-      }                                                                                                            
+        }
+      }
     }

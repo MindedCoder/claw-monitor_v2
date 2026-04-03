@@ -15,3 +15,9 @@ export function resolveTenant(path, config) {
     provider: config.provider || {},
   };
 }
+
+/** Extract slug from tenant prefix for cookie naming, e.g. "/huangcan" → "huangcan" */
+export function getTenantSlug(prefix) {
+  const slug = prefix.replace(/^\/+|\/+$/g, '');
+  return slug || 'default';
+}

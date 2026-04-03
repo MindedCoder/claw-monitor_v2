@@ -4,9 +4,13 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { SessionStore } from './session.js';
-import { resolveTenant } from './tenant.js';
+import { resolveTenant, getTenantSlug } from './tenant.js';
+import { connectDb, closeDb } from './db.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
+
+// load login.html template once
+const loginTemplate = readFileSync(resolve(__dirname, 'login.html'), 'utf-8');
 
 // load providers dynamically
 const providers = {};
@@ -19,8 +23,10 @@ async function loadProvider(name) {
 
 export async function startGateway(config) {
   const port = config.port || 4180;
-  const cookieName = config.cookieName || 'claw_session';
   const ttl = config.sessionTtlMs || 7 * 24 * 3600 * 1000;
+
+  // connect to MongoDB
+  await connectDb(config);
   const sessions = new SessionStore(ttl);
 
   function parseCookies(req) {
@@ -30,6 +36,20 @@ export async function startGateway(config) {
       if (k) map[k] = decodeURIComponent(v.join('='));
     }
     return map;
+  }
+
+  function readJson(req) {
+    return new Promise((resolve) => {
+      const chunks = [];
+      req.on('data', c => chunks.push(c));
+      req.on('end', () => {
+        try {
+          resolve(JSON.parse(Buffer.concat(chunks).toString()));
+        } catch {
+          resolve({});
+        }
+      });
+    });
   }
 
   function parseForm(req) {
@@ -44,17 +64,18 @@ export async function startGateway(config) {
     });
   }
 
-  function parseQuery(req) {
-    const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    return Object.fromEntries(url.searchParams);
+  function cookieName(tenantPrefix) {
+    return `claw_session_${getTenantSlug(tenantPrefix)}`;
   }
 
-  function setCookie(res, value, maxAge) {
-    res.setHeader('Set-Cookie', `${cookieName}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAge / 1000)}`);
+  function setCookie(res, tenantPrefix, value, maxAge) {
+    const name = cookieName(tenantPrefix);
+    res.setHeader('Set-Cookie', `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAge / 1000)}`);
   }
 
-  function clearCookie(res) {
-    res.setHeader('Set-Cookie', `${cookieName}=; Path=/; HttpOnly; Max-Age=0`);
+  function clearCookie(res, tenantPrefix) {
+    const name = cookieName(tenantPrefix);
+    res.setHeader('Set-Cookie', `${name}=; Path=/; HttpOnly; Max-Age=0`);
   }
 
   function redirect(res, url) {
@@ -65,6 +86,12 @@ export async function startGateway(config) {
   function sendHtml(res, html, status = 200) {
     res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8' });
     res.end(html);
+  }
+
+  function sendJson(res, data, status = 200) {
+    const body = JSON.stringify(data);
+    res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(body);
   }
 
   const server = http.createServer(async (req, res) => {
@@ -80,16 +107,17 @@ export async function startGateway(config) {
 
       // nginx auth_request check
       if (path === '/auth/check') {
-        // API and static paths bypass auth (support path prefix like /huangcan/api/...)
         const originalUri = req.headers['x-original-uri'] || '';
         if (originalUri.includes('/api/') || originalUri.includes('/static/') || originalUri.endsWith('/healthz')) {
           res.writeHead(200);
           return res.end();
         }
 
+        const tenant = resolveTenant(originalUri, config);
         const cookies = parseCookies(req);
-        const sid = cookies[cookieName];
-        const user = sid ? sessions.get(sid) : null;
+        const cName = cookieName(tenant.prefix);
+        const sid = cookies[cName];
+        const user = sid ? await sessions.get(sid, tenant.prefix) : null;
         if (user) {
           res.writeHead(200, { 'X-Auth-User': user.name || '' });
         } else {
@@ -98,10 +126,28 @@ export async function startGateway(config) {
         return res.end();
       }
 
-      // resolve tenant from original request path or rd param
+      // resolve tenant from rd param or original uri
       const rd = url.searchParams.get('rd') || req.headers['x-original-uri'] || '/';
       const tenant = resolveTenant(rd, config);
       const provider = await loadProvider(tenant.authProvider);
+
+      // send verification code (phone provider)
+      if (path === '/auth/send-code' && req.method === 'POST') {
+        const body = await readJson(req);
+        const phone = body.phone;
+        const tenantPrefix = body.tenant || tenant.prefix;
+
+        if (!phone) return sendJson(res, { message: '请输入手机号' }, 400);
+
+        const phoneProvider = await loadProvider('phone');
+        const result = await phoneProvider.sendCode({
+          phone,
+          tenant: tenantPrefix,
+          smsConfig: config.sms,
+        });
+
+        return sendJson(res, { message: result.message }, result.ok ? 200 : result.status);
+      }
 
       // login page
       if (path === '/auth/login') {
@@ -111,6 +157,13 @@ export async function startGateway(config) {
           const authUrl = provider.getAuthUrl({ redirectUri: callbackUrl, state, config: tenant.provider });
           return redirect(res, authUrl);
         }
+        // phone provider — serve static login page
+        if (tenant.authProvider === 'phone') {
+          const html = loginTemplate
+            .replace('{{TENANT}}', tenant.prefix)
+            .replace('{{RD}}', rd);
+          return sendHtml(res, html);
+        }
         if (provider.renderLoginPage) {
           const html = provider.renderLoginPage({ state, rd, config: tenant.provider });
           return sendHtml(res, html);
@@ -119,16 +172,28 @@ export async function startGateway(config) {
         return res.end('No login method available');
       }
 
-      // callback (OAuth or form POST)
+      // callback (OAuth, password form, or phone code verification)
       if (path === '/auth/callback') {
         let user = null;
+        let rdParam = '/';
 
         if (req.method === 'POST') {
-          const body = await parseForm(req);
-          user = await provider.getUser({ body, config: tenant.provider });
+          const contentType = req.headers['content-type'] || '';
+          let body;
+
+          if (contentType.includes('application/json')) {
+            body = await readJson(req);
+            rdParam = body.rd || '/';
+          } else {
+            body = await parseForm(req);
+            rdParam = body.rd || '/';
+          }
+
+          user = await provider.getUser({ body, config: tenant.provider, tenant: tenant.prefix });
         } else {
           const code = url.searchParams.get('code');
-          const query = parseQuery(req);
+          const query = Object.fromEntries(url.searchParams);
+          rdParam = url.searchParams.get('rd') || '/';
           if (code) {
             const callbackUrl = `${url.protocol}//${url.host}/auth/callback`;
             user = await provider.getUser({ code, redirectUri: callbackUrl, config: tenant.provider });
@@ -138,22 +203,28 @@ export async function startGateway(config) {
         }
 
         if (!user) {
+          if (req.headers['content-type']?.includes('application/json')) {
+            return sendJson(res, { message: '验证码错误或已过期' }, 403);
+          }
           return sendHtml(res, '<h3>认证失败</h3><a href="/auth/login">重试</a>', 403);
         }
 
-        const sid = sessions.create(user);
-        setCookie(res, sid, ttl);
+        const sid = await sessions.create(user, tenant.prefix);
+        setCookie(res, tenant.prefix, sid, ttl);
 
-        const rdParam = url.searchParams.get('rd') || '/';
+        if (req.headers['content-type']?.includes('application/json')) {
+          return sendJson(res, { redirect: rdParam });
+        }
         return redirect(res, rdParam);
       }
 
       // logout
       if (path === '/auth/logout') {
         const cookies = parseCookies(req);
-        const sid = cookies[cookieName];
-        if (sid) sessions.destroy(sid);
-        clearCookie(res);
+        const cName = cookieName(tenant.prefix);
+        const sid = cookies[cName];
+        if (sid) await sessions.destroy(sid);
+        clearCookie(res, tenant.prefix);
         return redirect(res, '/');
       }
 
@@ -170,7 +241,13 @@ export async function startGateway(config) {
     console.log(`[auth-gateway] listening on :${port}`);
   });
 
-  return { server, sessions };
+  // graceful shutdown
+  const shutdown = async () => {
+    server.close();
+    await closeDb();
+  };
+
+  return { server, sessions, shutdown };
 }
 
 // standalone mode

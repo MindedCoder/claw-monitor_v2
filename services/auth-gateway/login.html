@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>登录 — Claw Monitor</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
+.box{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:32px;width:340px}
+h2{margin-bottom:20px;color:#58a6ff;font-size:20px;text-align:center}
+label{font-size:13px;color:#8b949e;display:block;margin-bottom:4px}
+input{width:100%;padding:10px;margin-bottom:14px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;font-size:14px;outline:none}
+input:focus{border-color:#58a6ff}
+.row{display:flex;gap:8px}
+.row input{flex:1;margin-bottom:0}
+.row button{flex-shrink:0;width:110px;margin-bottom:0}
+button{width:100%;padding:10px;background:#238636;border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:14px}
+button:hover{background:#2ea043}
+button:disabled{background:#30363d;color:#8b949e;cursor:not-allowed}
+.msg{font-size:13px;margin-top:12px;text-align:center;min-height:18px}
+.msg.ok{color:#3fb950}
+.msg.err{color:#f85149}
+#step2{display:none}
+</style>
+</head>
+<body>
+<div class="box">
+  <h2>手机验证码登录</h2>
+
+  <div id="step1">
+    <label>手机号</label>
+    <input type="tel" id="phone" placeholder="请输入手机号" maxlength="11" autofocus>
+    <div class="row">
+      <input type="text" id="code" placeholder="验证码" maxlength="6">
+      <button type="button" id="sendBtn" onclick="sendCode()">获取验证码</button>
+    </div>
+  </div>
+
+  <div id="step2">
+    <button type="button" id="loginBtn" onclick="doLogin()">登录</button>
+  </div>
+
+  <div class="msg" id="msg"></div>
+</div>
+
+<script>
+const TENANT = '{{TENANT}}';
+const RD = '{{RD}}';
+let countdown = 0;
+let timer = null;
+
+function showMsg(text, ok) {
+  const el = document.getElementById('msg');
+  el.textContent = text;
+  el.className = 'msg ' + (ok ? 'ok' : 'err');
+}
+
+function startCountdown() {
+  countdown = 60;
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  timer = setInterval(() => {
+    countdown--;
+    btn.textContent = countdown + 's';
+    if (countdown <= 0) {
+      clearInterval(timer);
+      btn.disabled = false;
+      btn.textContent = '获取验证码';
+    }
+  }, 1000);
+}
+
+async function sendCode() {
+  const phone = document.getElementById('phone').value.trim();
+  if (!/^1\d{10}$/.test(phone)) {
+    return showMsg('请输入正确的手机号', false);
+  }
+
+  const btn = document.getElementById('sendBtn');
+  btn.disabled = true;
+  showMsg('', true);
+
+  try {
+    const res = await fetch('/auth/send-code', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, tenant: TENANT }),
+    });
+    const data = await res.json();
+    if (res.ok) {
+      showMsg(data.message, true);
+      startCountdown();
+      document.getElementById('step2').style.display = 'block';
+      document.getElementById('code').focus();
+    } else {
+      showMsg(data.message || '发送失败', false);
+      btn.disabled = false;
+    }
+  } catch (e) {
+    showMsg('网络错误', false);
+    btn.disabled = false;
+  }
+}
+
+async function doLogin() {
+  const phone = document.getElementById('phone').value.trim();
+  const code = document.getElementById('code').value.trim();
+  if (!phone || !code) return showMsg('请填写完整', false);
+
+  const btn = document.getElementById('loginBtn');
+  btn.disabled = true;
+  showMsg('', true);
+
+  try {
+    const res = await fetch('/auth/callback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ phone, code, rd: RD, tenant: TENANT }),
+      redirect: 'manual',
+    });
+
+    if (res.status === 302 || res.status === 301 || res.type === 'opaqueredirect') {
+      window.location.href = RD || '/';
+      return;
+    }
+
+    // handle JSON response
+    if (res.ok) {
+      const data = await res.json();
+      if (data.redirect) {
+        window.location.href = data.redirect;
+        return;
+      }
+    }
+
+    showMsg('验证码错误或已过期', false);
+    btn.disabled = false;
+  } catch (e) {
+    // redirect may throw in manual mode — try navigating
+    window.location.href = RD || '/';
+  }
+}
+
+// enter key support
+document.getElementById('phone').addEventListener('keydown', e => {
+  if (e.key === 'Enter') sendCode();
+});
+document.getElementById('code').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doLogin();
+});
+</script>
+</body>
+</html>
