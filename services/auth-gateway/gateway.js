@@ -107,7 +107,7 @@ export async function startGateway(config) {
 
       // nginx auth_request check
       if (path === '/auth/check') {
-        const originalUri = req.headers['x-original-uri'] || '';
+        const originalUri = req.headers['x-original-uri'] || url.searchParams.get('rd') || '';
         if (originalUri.includes('/api/') || originalUri.includes('/static/') || originalUri.endsWith('/healthz')) {
           res.writeHead(200);
           return res.end();

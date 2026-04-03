@@ -73,10 +73,8 @@ metadata:
   namespace: bfe
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
-    nginx.ingress.kubernetes.io/auth-url: "http://auth-gateway.bfe.svc.cluster.local:4180/auth/check"
+    nginx.ingress.kubernetes.io/auth-url: "http://auth-gateway.bfe.svc.cluster.local:4180/auth/check?rd=$escaped_request_uri"
     nginx.ingress.kubernetes.io/auth-signin: "https://claw.bfelab.com/auth/login?rd=$escaped_request_uri"
-    nginx.ingress.kubernetes.io/auth-snippet: |
-      proxy_set_header X-Original-URI $request_uri;
 spec:
   ingressClassName: nginx
   tls:
