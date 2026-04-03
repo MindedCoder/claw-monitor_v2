@@ -107,7 +107,14 @@ export async function startGateway(config) {
 
       // nginx auth_request check
       if (path === '/auth/check') {
-        const originalUri = req.headers['x-original-uri'] || url.searchParams.get('rd') || '';
+        // Nginx Ingress sends X-Original-URL (full URL) by default
+        const originalUrl = req.headers['x-original-url'] || '';
+        const originalUri = req.headers['x-original-uri']
+          || url.searchParams.get('rd')
+          || (originalUrl ? new URL(originalUrl, 'http://localhost').pathname : '')
+          || '';
+        console.log(`[auth/check] headers: x-original-url=${originalUrl} x-original-uri=${req.headers['x-original-uri'] || ''}`);
+
         if (originalUri.includes('/api/') || originalUri.includes('/static/') || originalUri.endsWith('/healthz')) {
           res.writeHead(200);
           return res.end();
