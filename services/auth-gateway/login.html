@@ -165,23 +165,23 @@ input::placeholder{color:#484f58}
 <div class="login-side">
   <div class="login-box">
     <div class="login-header">
-      <h2>Welcome Back</h2>
-      <p>Sign in to your monitoring dashboard</p>
+      <h2>欢迎回来</h2>
+      <p>登录您的监控面板</p>
     </div>
 
     <div class="tabs">
-      <div class="tab active" onclick="switchTab('sms')">SMS Code</div>
-      <div class="tab" onclick="switchTab('pwd')">Password</div>
+      <div class="tab active" onclick="switchTab('sms')">短信验证码</div>
+      <div class="tab" onclick="switchTab('pwd')">密码登录</div>
     </div>
 
     <!-- SMS login panel -->
     <div id="smsPanel" class="panel active">
-      <label>Phone Number</label>
-      <input type="tel" id="phone" placeholder="Enter your phone number" maxlength="11" autofocus>
-      <label>Verification Code</label>
+      <label>手机号</label>
+      <input type="tel" id="phone" placeholder="请输入手机号" maxlength="11" autofocus>
+      <label>验证码</label>
       <div class="code-row">
-        <input type="text" id="code" placeholder="6-digit code" maxlength="6">
-        <button type="button" id="sendBtn" onclick="sendCode()">Send Code</button>
+        <input type="text" id="code" placeholder="6位验证码" maxlength="6">
+        <button type="button" id="sendBtn" onclick="sendCode()">获取验证码</button>
       </div>
       <div id="smsSubmit" style="display:none;margin-top:4px">
         <form id="smsForm" method="POST" action="/auth/callback">
@@ -190,7 +190,7 @@ input::placeholder{color:#484f58}
           <input type="hidden" name="loginType" value="sms">
           <input type="hidden" name="rd" id="hiddenRd">
           <input type="hidden" name="tenant" id="hiddenTenant">
-          <button type="submit" class="login-btn">Sign In</button>
+          <button type="submit" class="login-btn">登 录</button>
         </form>
       </div>
     </div>
@@ -198,14 +198,14 @@ input::placeholder{color:#484f58}
     <!-- Password login panel -->
     <div id="pwdPanel" class="panel">
       <form id="pwdForm" method="POST" action="/auth/callback">
-        <label>Phone Number</label>
-        <input type="tel" name="phone" id="pwdPhone" placeholder="Enter your phone number" maxlength="11">
-        <label>Password</label>
-        <input type="password" name="password" id="pwdPassword" placeholder="Enter your password">
+        <label>手机号</label>
+        <input type="tel" name="phone" id="pwdPhone" placeholder="请输入手机号" maxlength="11">
+        <label>密码</label>
+        <input type="password" name="password" id="pwdPassword" placeholder="请输入密码">
         <input type="hidden" name="loginType" value="password">
         <input type="hidden" name="rd" id="pwdRd">
         <input type="hidden" name="tenant" id="pwdTenant">
-        <button type="submit" class="login-btn">Sign In</button>
+        <button type="submit" class="login-btn">登 录</button>
       </form>
     </div>
 
@@ -249,7 +249,7 @@ function startCountdown() {
     if (countdown <= 0) {
       clearInterval(timer);
       btn.disabled = false;
-      btn.textContent = 'Send Code';
+      btn.textContent = '获取验证码';
     }
   }, 1000);
 }
@@ -257,7 +257,7 @@ function startCountdown() {
 async function sendCode() {
   const phone = document.getElementById('phone').value.trim();
   if (!/^1\d{10}$/.test(phone)) {
-    return showMsg('Please enter a valid phone number', false);
+    return showMsg('请输入正确的手机号', false);
   }
 
   const btn = document.getElementById('sendBtn');
@@ -277,11 +277,11 @@ async function sendCode() {
       document.getElementById('smsSubmit').style.display = 'block';
       document.getElementById('code').focus();
     } else {
-      showMsg(data.message || 'Failed to send', false);
+      showMsg(data.message || '发送失败', false);
       btn.disabled = false;
     }
   } catch (e) {
-    showMsg('Network error', false);
+    showMsg('网络错误', false);
     btn.disabled = false;
   }
 }
@@ -291,7 +291,7 @@ function doSmsLogin(e) {
   const code = document.getElementById('code').value.trim();
   if (!phone || !code) {
     if (e) e.preventDefault();
-    return showMsg('Please fill in all fields', false);
+    return showMsg('请填写完整', false);
   }
   document.getElementById('hiddenPhone').value = phone;
   document.getElementById('hiddenCode').value = code;
@@ -321,7 +321,7 @@ document.getElementById('pwdForm').addEventListener('submit', e => {
   const pwd = document.getElementById('pwdPassword').value;
   if (!phone || !pwd) {
     e.preventDefault();
-    return showMsg('Please fill in all fields', false);
+    return showMsg('请填写完整', false);
   }
   document.getElementById('pwdRd').value = RD;
   document.getElementById('pwdTenant').value = TENANT;
