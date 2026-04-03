@@ -104,13 +104,26 @@ export default {
   },
 
   /**
-   * Verify code and return user info
+   * Verify code or password and return user info
    */
   async getUser({ body, config, tenant }) {
-    const { phone, code } = body || {};
-    if (!phone || !code) return null;
+    const { phone, code, password, loginType } = body || {};
+    if (!phone) return null;
 
     const db = getDb();
+
+    // password login
+    if (loginType === 'password' || (!code && password)) {
+      if (!password) return null;
+      const user = await db.collection('users').findOne({ phone, tenants: tenant });
+      if (!user || !user.password) return null;
+      if (user.password !== password) return null;
+      return { name: user.name, phone: user.phone, provider: 'phone' };
+    }
+
+    // sms code login
+    if (!code) return null;
+
     const doc = await db.collection('codes').findOne({ phone, tenant });
 
     if (!doc) return null;
