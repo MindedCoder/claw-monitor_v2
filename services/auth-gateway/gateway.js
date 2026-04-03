@@ -176,6 +176,7 @@ export async function startGateway(config) {
       if (path === '/auth/callback') {
         let user = null;
         let rdParam = '/';
+        let effectiveTenant = tenant;
 
         if (req.method === 'POST') {
           const contentType = req.headers['content-type'] || '';
@@ -189,7 +190,13 @@ export async function startGateway(config) {
             rdParam = body.rd || '/';
           }
 
-          user = await provider.getUser({ body, config: tenant.provider, tenant: tenant.prefix });
+          // re-resolve tenant from body (phone provider sends tenant in body)
+          if (body.tenant) {
+            effectiveTenant = resolveTenant(body.tenant, config);
+          }
+          const effectiveProvider = await loadProvider(effectiveTenant.authProvider);
+
+          user = await effectiveProvider.getUser({ body, config: effectiveTenant.provider, tenant: effectiveTenant.prefix });
         } else {
           const code = url.searchParams.get('code');
           const query = Object.fromEntries(url.searchParams);
@@ -209,8 +216,8 @@ export async function startGateway(config) {
           return sendHtml(res, '<h3>认证失败</h3><a href="/auth/login">重试</a>', 403);
         }
 
-        const sid = await sessions.create(user, tenant.prefix);
-        setCookie(res, tenant.prefix, sid, ttl);
+        const sid = await sessions.create(user, effectiveTenant.prefix);
+        setCookie(res, effectiveTenant.prefix, sid, ttl);
 
         if (req.headers['content-type']?.includes('application/json')) {
           return sendJson(res, { redirect: rdParam });

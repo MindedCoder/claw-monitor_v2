@@ -1,4 +1,4 @@
-import { randomInt, createHmac } from 'node:crypto';
+import { randomInt, randomBytes, createHmac } from 'node:crypto';
 import { getDb } from '../db.js';
 
 /**
@@ -88,6 +88,7 @@ export default {
 
     // insert new code
     await db.collection('codes').insertOne({
+      _id: randomBytes(12).toString('hex'),
       phone,
       tenant,
       code,

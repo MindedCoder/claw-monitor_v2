@@ -13,7 +13,7 @@ export class SessionStore {
   }
 
   async create(userData, tenant) {
-    const id = randomBytes(24).toString('hex');
+    const id = randomBytes(12).toString('hex');
     const now = new Date();
     await this.#col.insertOne({
       _id: id,

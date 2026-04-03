@@ -15,8 +15,8 @@ data:
         "database": "claw"
       },
       "sms": {
-        "accessKeyId": "LTAI6hmWeeDzvJjq",
-        "accessKeySecret": "8sOOpzsHuUA2EtUGijw636kDUw7oAH",
+        "accessKeyId": "LTAI5tQqp3S9F7caKqkkHWXd",
+        "accessKeySecret": "7MqOH5oydVwdeML3tjoDyYiKlB8xI3",
         "signName": "BFELAB",
         "templateCode": "SMS_172005076"
       },
@@ -34,15 +34,15 @@ data:
           "provider": {}
         },
         "/bfetest": {
-          "authProvider": "feishu",
+          "authProvider": "password",
           "provider": { "appId": "cli_a9327e7bd53cdbc9", "appSecret": "nGBeMIy4os5dykHxbGp6SdRgEKxD5co3" }
         },
         "/monitor": {
-          "authProvider": "feishu",
+          "authProvider": "password",
           "provider": { "appId": "cli_a93bb49ab0fa1bc6", "appSecret": "QwnekxYjU4TH6OvA4MGTter5ceRFGUGZ" }
         },
         "/kai": {
-          "authProvider": "feishu",
+          "authProvider": "password",
           "provider": { "appId": "cli_a941f83f4fb99cd6", "appSecret": "wSscNopYHalfGovpzUXZBh0qKxXQUzbb" }
         }
       }
