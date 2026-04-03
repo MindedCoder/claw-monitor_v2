@@ -8,9 +8,11 @@ export function resolveTenant(path, config) {
     }
   }
 
-  // default tenant
+  // default tenant — extract prefix from path (e.g. "/huangcan/dashboard" → "/huangcan")
+  const match = path.match(/^(\/[^/]+)/);
+  const prefix = match ? match[1] : '/';
   return {
-    prefix: '/',
+    prefix,
     authProvider: config.authProvider || 'password',
     provider: config.provider || {},
   };
