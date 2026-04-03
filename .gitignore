@@ -7,3 +7,4 @@ data/*.pid
 data/*.sh
 !data/.gitkeep
 node_modules/
+k8s/*-secret.yaml
