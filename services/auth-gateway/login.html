@@ -3,51 +3,189 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>登录 — Claw Monitor</title>
+<title>Claw Monitor — OpenClaw</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0d1117;color:#c9d1d9;font-family:-apple-system,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh}
-.box{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:32px;width:340px}
-h2{margin-bottom:20px;color:#58a6ff;font-size:20px;text-align:center}
-label{font-size:13px;color:#8b949e;display:block;margin-bottom:4px}
-input{width:100%;padding:10px;margin-bottom:14px;background:#0d1117;border:1px solid #30363d;color:#c9d1d9;border-radius:4px;font-size:14px;outline:none}
-input:focus{border-color:#58a6ff}
-.row{display:flex;gap:8px}
-.row input{flex:1;margin-bottom:0}
-.row button{flex-shrink:0;width:110px;margin-bottom:0}
-button{width:100%;padding:10px;background:#238636;border:none;color:#fff;border-radius:4px;cursor:pointer;font-size:14px}
-button:hover{background:#2ea043}
-button:disabled{background:#30363d;color:#8b949e;cursor:not-allowed}
-.msg{font-size:13px;margin-top:12px;text-align:center;min-height:18px}
+body{background:#0a0e14;color:#c9d1d9;font-family:-apple-system,'Segoe UI',sans-serif;min-height:100vh;display:flex;overflow:hidden}
+
+/* left panel — branding */
+.brand{flex:1;display:flex;flex-direction:column;justify-content:center;align-items:center;padding:48px;position:relative;overflow:hidden}
+.brand::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 30% 50%,rgba(56,139,253,0.08) 0%,transparent 70%)}
+
+/* animated grid background */
+.grid-bg{position:absolute;inset:0;opacity:0.04;
+  background-image:linear-gradient(rgba(88,166,255,0.5) 1px,transparent 1px),linear-gradient(90deg,rgba(88,166,255,0.5) 1px,transparent 1px);
+  background-size:40px 40px;animation:gridMove 20s linear infinite}
+@keyframes gridMove{0%{transform:translate(0,0)}100%{transform:translate(40px,40px)}}
+
+/* floating pulse dots */
+.pulse-dot{position:absolute;border-radius:50%;animation:pulse 3s ease-in-out infinite}
+.pulse-dot:nth-child(1){width:6px;height:6px;background:#3fb950;top:20%;left:25%;animation-delay:0s}
+.pulse-dot:nth-child(2){width:4px;height:4px;background:#58a6ff;top:40%;left:70%;animation-delay:1s}
+.pulse-dot:nth-child(3){width:5px;height:5px;background:#d29922;top:70%;left:35%;animation-delay:2s}
+.pulse-dot:nth-child(4){width:4px;height:4px;background:#3fb950;top:55%;left:80%;animation-delay:0.5s}
+.pulse-dot:nth-child(5){width:6px;height:6px;background:#58a6ff;top:85%;left:55%;animation-delay:1.5s}
+@keyframes pulse{0%,100%{opacity:0.2;transform:scale(1)}50%{opacity:1;transform:scale(2)}}
+
+.brand-content{position:relative;z-index:1;text-align:center;max-width:420px}
+
+/* logo */
+.logo{margin-bottom:32px}
+.logo svg{width:72px;height:72px;filter:drop-shadow(0 0 20px rgba(56,139,253,0.3))}
+.brand-title{font-size:32px;font-weight:700;letter-spacing:-0.5px;margin-bottom:8px}
+.brand-title .bfe{color:#58a6ff}.brand-title .sep{color:#30363d;margin:0 4px}.brand-title .claw{color:#c9d1d9}
+.brand-sub{font-size:15px;color:#8b949e;margin-bottom:40px;line-height:1.6}
+.brand-sub strong{color:#c9d1d9}
+
+/* status indicators */
+.status-bar{display:flex;gap:20px;justify-content:center;flex-wrap:wrap}
+.status-item{display:flex;align-items:center;gap:6px;font-size:12px;color:#8b949e}
+.status-dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.status-dot.green{background:#3fb950;box-shadow:0 0 6px rgba(63,185,80,0.5)}
+.status-dot.blue{background:#58a6ff;box-shadow:0 0 6px rgba(88,166,255,0.5)}
+.status-dot.yellow{background:#d29922;box-shadow:0 0 6px rgba(210,153,34,0.5)}
+
+/* right panel — login form */
+.login-side{width:420px;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:48px;background:#0d1117;border-left:1px solid #21262d;flex-shrink:0}
+.login-box{width:100%;max-width:320px}
+
+.login-header{margin-bottom:28px;text-align:center}
+.login-header h2{font-size:18px;color:#c9d1d9;font-weight:600;margin-bottom:6px}
+.login-header p{font-size:13px;color:#8b949e}
+
+label{font-size:12px;color:#8b949e;display:block;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+input[type="tel"],input[type="text"]{width:100%;padding:10px 12px;margin-bottom:16px;background:#161b22;border:1px solid #30363d;color:#c9d1d9;border-radius:6px;font-size:14px;outline:none;transition:border-color 0.2s}
+input:focus{border-color:#58a6ff;box-shadow:0 0 0 3px rgba(56,139,253,0.1)}
+input::placeholder{color:#484f58}
+
+.code-row{display:flex;gap:8px;margin-bottom:16px}
+.code-row input{flex:1;margin-bottom:0}
+.code-row button{flex-shrink:0;width:108px;padding:10px 0;background:transparent;border:1px solid #58a6ff;color:#58a6ff;border-radius:6px;cursor:pointer;font-size:13px;transition:all 0.2s}
+.code-row button:hover:not(:disabled){background:rgba(56,139,253,0.1)}
+.code-row button:disabled{border-color:#30363d;color:#484f58;cursor:not-allowed}
+
+.login-btn{width:100%;padding:11px;background:linear-gradient(135deg,#238636,#2ea043);border:none;color:#fff;border-radius:6px;cursor:pointer;font-size:14px;font-weight:600;transition:all 0.2s;letter-spacing:0.3px}
+.login-btn:hover{box-shadow:0 4px 14px rgba(35,134,54,0.4);transform:translateY(-1px)}
+.login-btn:disabled{background:#21262d;color:#484f58;cursor:not-allowed;transform:none;box-shadow:none}
+
+#step2{display:none;margin-top:4px}
+
+.msg{font-size:13px;margin-top:14px;text-align:center;min-height:18px;transition:all 0.2s}
 .msg.ok{color:#3fb950}
 .msg.err{color:#f85149}
-#step2{display:none}
+
+.footer{margin-top:36px;text-align:center;font-size:11px;color:#30363d}
+.footer a{color:#484f58;text-decoration:none}
+
+/* monitor animation in brand area */
+.monitor-viz{margin:32px 0;display:flex;align-items:flex-end;justify-content:center;gap:3px;height:40px}
+.bar{width:4px;border-radius:2px;background:linear-gradient(to top,#238636,#58a6ff);animation:barPulse 1.5s ease-in-out infinite}
+.bar:nth-child(1){height:40%;animation-delay:0s}
+.bar:nth-child(2){height:70%;animation-delay:0.15s}
+.bar:nth-child(3){height:55%;animation-delay:0.3s}
+.bar:nth-child(4){height:85%;animation-delay:0.45s}
+.bar:nth-child(5){height:45%;animation-delay:0.6s}
+.bar:nth-child(6){height:95%;animation-delay:0.75s}
+.bar:nth-child(7){height:60%;animation-delay:0.9s}
+.bar:nth-child(8){height:75%;animation-delay:1.05s}
+.bar:nth-child(9){height:50%;animation-delay:1.2s}
+.bar:nth-child(10){height:65%;animation-delay:1.35s}
+@keyframes barPulse{0%,100%{opacity:0.4;transform:scaleY(1)}50%{opacity:1;transform:scaleY(1.2)}}
+
+/* responsive */
+@media(max-width:860px){
+  body{flex-direction:column}
+  .brand{min-height:auto;padding:36px 24px}
+  .monitor-viz,.status-bar{display:none}
+  .brand-sub{margin-bottom:16px}
+  .login-side{width:100%;min-height:auto;border-left:none;border-top:1px solid #21262d;padding:32px 24px}
+}
 </style>
 </head>
 <body>
-<div class="box">
-  <h2>手机验证码登录</h2>
 
-  <div id="step1">
-    <label>手机号</label>
-    <input type="tel" id="phone" placeholder="请输入手机号" maxlength="11" autofocus>
-    <div class="row">
-      <input type="text" id="code" placeholder="验证码" maxlength="6">
-      <button type="button" id="sendBtn" onclick="sendCode()">获取验证码</button>
+<!-- Left: Branding -->
+<div class="brand">
+  <div class="grid-bg"></div>
+  <div class="pulse-dot"></div>
+  <div class="pulse-dot"></div>
+  <div class="pulse-dot"></div>
+  <div class="pulse-dot"></div>
+  <div class="pulse-dot"></div>
+
+  <div class="brand-content">
+    <div class="logo">
+      <svg viewBox="0 0 72 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- shield outline -->
+        <path d="M36 4L8 16v20c0 16.6 11.9 32.1 28 36 16.1-3.9 28-19.4 28-36V16L36 4z" fill="none" stroke="#58a6ff" stroke-width="2" opacity="0.3"/>
+        <path d="M36 8L12 18.5v17.5c0 14.4 10.2 27.8 24 31.2 13.8-3.4 24-16.8 24-31.2V18.5L36 8z" fill="rgba(56,139,253,0.06)" stroke="#58a6ff" stroke-width="1.5"/>
+        <!-- claw mark -->
+        <path d="M26 28c2-6 4-10 6-10s3 4 3 8" stroke="#3fb950" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path d="M33 28c1.5-5 3.5-9 5.5-9s2.5 4 2.5 7" stroke="#3fb950" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <path d="M39 29c1.5-4.5 3-8 5-8s2 3.5 2 6.5" stroke="#3fb950" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+        <!-- pulse line -->
+        <path d="M18 44h8l3-6 4 12 4-10 3 4h14" stroke="#58a6ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" fill="none" opacity="0.8"/>
+      </svg>
+    </div>
+
+    <div class="brand-title">
+      <span class="bfe">BFE</span><span class="sep">/</span><span class="claw">Claw</span>
+    </div>
+    <div class="brand-sub">
+      <strong>OpenClaw</strong> Monitor<br>
+      AI-Native Infrastructure Monitoring
+    </div>
+
+    <div class="monitor-viz">
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div><div class="bar"></div><div class="bar"></div>
+      <div class="bar"></div>
+    </div>
+
+    <div class="status-bar">
+      <div class="status-item"><span class="status-dot green"></span>Health Check</div>
+      <div class="status-item"><span class="status-dot blue"></span>Network Ping</div>
+      <div class="status-item"><span class="status-dot yellow"></span>API Usage</div>
+      <div class="status-item"><span class="status-dot green"></span>Log Stream</div>
     </div>
   </div>
+</div>
 
-  <div id="step2">
-    <form id="loginForm" method="POST" action="/auth/callback">
-      <input type="hidden" name="phone" id="hiddenPhone">
-      <input type="hidden" name="code" id="hiddenCode">
-      <input type="hidden" name="rd" id="hiddenRd">
-      <input type="hidden" name="tenant" id="hiddenTenant">
-      <button type="submit" id="loginBtn">登录</button>
-    </form>
+<!-- Right: Login Form -->
+<div class="login-side">
+  <div class="login-box">
+    <div class="login-header">
+      <h2>Welcome Back</h2>
+      <p>Sign in to your monitoring dashboard</p>
+    </div>
+
+    <div id="step1">
+      <label>Phone Number</label>
+      <input type="tel" id="phone" placeholder="Enter your phone number" maxlength="11" autofocus>
+      <label>Verification Code</label>
+      <div class="code-row">
+        <input type="text" id="code" placeholder="6-digit code" maxlength="6">
+        <button type="button" id="sendBtn" onclick="sendCode()">Send Code</button>
+      </div>
+    </div>
+
+    <div id="step2">
+      <form id="loginForm" method="POST" action="/auth/callback">
+        <input type="hidden" name="phone" id="hiddenPhone">
+        <input type="hidden" name="code" id="hiddenCode">
+        <input type="hidden" name="rd" id="hiddenRd">
+        <input type="hidden" name="tenant" id="hiddenTenant">
+        <button type="submit" class="login-btn" id="loginBtn">Sign In</button>
+      </form>
+    </div>
+
+    <div class="msg" id="msg"></div>
+
+    <div class="footer">
+      Powered by <a href="#">BFE Lab</a> &middot; OpenClaw
+    </div>
   </div>
-
-  <div class="msg" id="msg"></div>
 </div>
 
 <script>
@@ -72,7 +210,7 @@ function startCountdown() {
     if (countdown <= 0) {
       clearInterval(timer);
       btn.disabled = false;
-      btn.textContent = '获取验证码';
+      btn.textContent = 'Send Code';
     }
   }, 1000);
 }
@@ -80,7 +218,7 @@ function startCountdown() {
 async function sendCode() {
   const phone = document.getElementById('phone').value.trim();
   if (!/^1\d{10}$/.test(phone)) {
-    return showMsg('请输入正确的手机号', false);
+    return showMsg('Please enter a valid phone number', false);
   }
 
   const btn = document.getElementById('sendBtn');
@@ -100,11 +238,11 @@ async function sendCode() {
       document.getElementById('step2').style.display = 'block';
       document.getElementById('code').focus();
     } else {
-      showMsg(data.message || '发送失败', false);
+      showMsg(data.message || 'Failed to send', false);
       btn.disabled = false;
     }
   } catch (e) {
-    showMsg('网络错误', false);
+    showMsg('Network error', false);
     btn.disabled = false;
   }
 }
@@ -114,16 +252,14 @@ function doLogin(e) {
   const code = document.getElementById('code').value.trim();
   if (!phone || !code) {
     if (e) e.preventDefault();
-    return showMsg('请填写完整', false);
+    return showMsg('Please fill in all fields', false);
   }
-  // fill hidden form fields and let browser submit natively (handles 302 + Set-Cookie)
   document.getElementById('hiddenPhone').value = phone;
   document.getElementById('hiddenCode').value = code;
   document.getElementById('hiddenRd').value = RD;
   document.getElementById('hiddenTenant').value = TENANT;
 }
 
-// enter key support
 document.getElementById('phone').addEventListener('keydown', e => {
   if (e.key === 'Enter') sendCode();
 });

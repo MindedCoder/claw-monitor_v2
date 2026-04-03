@@ -217,8 +217,13 @@ export async function startGateway(config) {
         }
 
         const sid = await sessions.create(user, effectiveTenant.prefix);
-        setCookie(res, effectiveTenant.prefix, sid, ttl);
-        return redirect(res, rdParam);
+        const cName = cookieName(effectiveTenant.prefix);
+        const cookieStr = `${cName}=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ttl / 1000)}`;
+        res.writeHead(302, {
+          Location: rdParam,
+          'Set-Cookie': cookieStr,
+        });
+        return res.end();
       }
 
       // logout
@@ -227,8 +232,12 @@ export async function startGateway(config) {
         const cName = cookieName(tenant.prefix);
         const sid = cookies[cName];
         if (sid) await sessions.destroy(sid);
-        clearCookie(res, tenant.prefix);
-        return redirect(res, '/');
+        const cNameLogout = cookieName(tenant.prefix);
+        res.writeHead(302, {
+          Location: '/',
+          'Set-Cookie': `${cNameLogout}=; Path=/; HttpOnly; Max-Age=0`,
+        });
+        return res.end();
       }
 
       res.writeHead(404);
