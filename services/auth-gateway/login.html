@@ -38,7 +38,13 @@ button:disabled{background:#30363d;color:#8b949e;cursor:not-allowed}
   </div>
 
   <div id="step2">
-    <button type="button" id="loginBtn" onclick="doLogin()">登录</button>
+    <form id="loginForm" method="POST" action="/auth/callback">
+      <input type="hidden" name="phone" id="hiddenPhone">
+      <input type="hidden" name="code" id="hiddenCode">
+      <input type="hidden" name="rd" id="hiddenRd">
+      <input type="hidden" name="tenant" id="hiddenTenant">
+      <button type="submit" id="loginBtn">登录</button>
+    </form>
   </div>
 
   <div class="msg" id="msg"></div>
@@ -103,43 +109,18 @@ async function sendCode() {
   }
 }
 
-async function doLogin() {
+function doLogin(e) {
   const phone = document.getElementById('phone').value.trim();
   const code = document.getElementById('code').value.trim();
-  if (!phone || !code) return showMsg('请填写完整', false);
-
-  const btn = document.getElementById('loginBtn');
-  btn.disabled = true;
-  showMsg('', true);
-
-  try {
-    const res = await fetch('/auth/callback', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone, code, rd: RD, tenant: TENANT }),
-      redirect: 'manual',
-    });
-
-    if (res.status === 302 || res.status === 301 || res.type === 'opaqueredirect') {
-      window.location.href = RD || '/';
-      return;
-    }
-
-    // handle JSON response
-    if (res.ok) {
-      const data = await res.json();
-      if (data.redirect) {
-        window.location.href = data.redirect;
-        return;
-      }
-    }
-
-    showMsg('验证码错误或已过期', false);
-    btn.disabled = false;
-  } catch (e) {
-    // redirect may throw in manual mode — try navigating
-    window.location.href = RD || '/';
+  if (!phone || !code) {
+    if (e) e.preventDefault();
+    return showMsg('请填写完整', false);
   }
+  // fill hidden form fields and let browser submit natively (handles 302 + Set-Cookie)
+  document.getElementById('hiddenPhone').value = phone;
+  document.getElementById('hiddenCode').value = code;
+  document.getElementById('hiddenRd').value = RD;
+  document.getElementById('hiddenTenant').value = TENANT;
 }
 
 // enter key support
@@ -147,7 +128,16 @@ document.getElementById('phone').addEventListener('keydown', e => {
   if (e.key === 'Enter') sendCode();
 });
 document.getElementById('code').addEventListener('keydown', e => {
-  if (e.key === 'Enter') doLogin();
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    doLogin();
+    if (document.getElementById('hiddenPhone').value) {
+      document.getElementById('loginForm').submit();
+    }
+  }
+});
+document.getElementById('loginForm').addEventListener('submit', e => {
+  doLogin(e);
 });
 </script>
 </body>

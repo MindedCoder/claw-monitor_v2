@@ -218,10 +218,6 @@ export async function startGateway(config) {
 
         const sid = await sessions.create(user, effectiveTenant.prefix);
         setCookie(res, effectiveTenant.prefix, sid, ttl);
-
-        if (req.headers['content-type']?.includes('application/json')) {
-          return sendJson(res, { redirect: rdParam });
-        }
         return redirect(res, rdParam);
       }
 
