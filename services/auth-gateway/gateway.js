@@ -117,10 +117,13 @@ export async function startGateway(config) {
         const cookies = parseCookies(req);
         const cName = cookieName(tenant.prefix);
         const sid = cookies[cName];
+        console.log(`[auth/check] uri=${originalUri} tenant=${tenant.prefix} cookie=${cName} sid=${sid ? sid.slice(0, 8) + '...' : 'none'}`);
         const user = sid ? await sessions.get(sid, tenant.prefix) : null;
         if (user) {
+          console.log(`[auth/check] OK user=${user.name}`);
           res.writeHead(200, { 'X-Auth-User': user.name || '' });
         } else {
+          console.log(`[auth/check] FAIL no valid session`);
           res.writeHead(401);
         }
         return res.end();
@@ -219,6 +222,8 @@ export async function startGateway(config) {
         const sid = await sessions.create(user, effectiveTenant.prefix);
         const cName = cookieName(effectiveTenant.prefix);
         const cookieStr = `${cName}=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ttl / 1000)}`;
+        console.log(`[callback] SUCCESS user=${user.name} tenant=${effectiveTenant.prefix} cookie=${cName} sid=${sid.slice(0, 8)}... rd=${rdParam}`);
+        console.log(`[callback] Set-Cookie: ${cookieStr.slice(0, 60)}...`);
         res.writeHead(302, {
           Location: rdParam,
           'Set-Cookie': cookieStr,
