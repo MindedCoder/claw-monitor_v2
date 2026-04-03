@@ -11,12 +11,12 @@ data:
       "authProvider": "password",
       "provider": { "password": "bfelab11223" },
       "mongodb": {
-        "uri": "CHANGE_ME_MONGODB_URI",
+        "uri": "mongodb://root:Espresso1006!@bfelab-secondary-pub.mongodb.rds.aliyuncs.com:3717/claw?authSource=admin",
         "database": "claw"
       },
       "sms": {
-        "accessKeyId": "CHANGE_ME_AK",
-        "accessKeySecret": "CHANGE_ME_SK",
+        "accessKeyId": "LTAI6hmWeeDzvJjq",
+        "accessKeySecret": "8sOOpzsHuUA2EtUGijw636kDUw7oAH",
         "signName": "BFELAB",
         "templateCode": "SMS_172005076"
       },
