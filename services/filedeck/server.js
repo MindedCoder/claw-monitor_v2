@@ -32,6 +32,7 @@ const TEXT_EXTENSIONS = new Set([
   '.ps1',
   '.sql',
   '.csv',
+  '.jsonl',
 ]);
 
 const MIME_TYPES = {
@@ -219,11 +220,63 @@ function getDefaultDirectoryPath() {
 }
 
 const app = express();
+app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
 
 app.get('/api/tree', (_request, response) => {
   try {
     response.json(getDirectoryPayload(ROOT_PATH));
+  } catch (error) {
+    response.status(500).json({ error: error.message });
+  }
+});
+
+app.post('/api/match-paths', (request, response) => {
+  try {
+    const text = request.body && request.body.text;
+    if (typeof text !== 'string') {
+      response.json({ matches: [] });
+      return;
+    }
+
+    const seen = new Set();
+    const matches = [];
+    const rootBase = path.basename(ROOT_PATH);
+    let searchFrom = 0;
+
+    while (searchFrom < text.length) {
+      const idx = text.indexOf(ROOT_PATH, searchFrom);
+      if (idx === -1) break;
+
+      const rest = text.slice(idx);
+      const endMatch = rest.search(/[\n\r,;'"<>|]/);
+      const raw = (endMatch === -1 ? rest : rest.slice(0, endMatch)).trimEnd();
+      searchFrom = idx + raw.length + 1;
+
+      const resolved = path.resolve(raw);
+      if (seen.has(resolved)) continue;
+      seen.add(resolved);
+
+      try {
+        const stats = fs.statSync(resolved);
+        const isFile = stats.isFile();
+        const displayPath = rootBase + resolved.slice(ROOT_PATH.length);
+        const entry = {
+          id: getOrCreateId(resolved),
+          name: path.basename(resolved),
+          displayPath,
+          type: isFile ? 'file' : 'directory',
+        };
+        if (isFile) {
+          entry.parentId = getOrCreateId(path.dirname(resolved));
+        }
+        matches.push(entry);
+      } catch (_error) {
+        // path doesn't exist, skip
+      }
+    }
+
+    response.json({ matches });
   } catch (error) {
     response.status(500).json({ error: error.message });
   }
@@ -290,9 +343,12 @@ app.get('/api/raw', (request, response) => {
       return;
     }
 
+    const fileName = path.basename(filePath);
+    const asciiName = fileName.replace(/[^\x20-\x7E]/g, '_');
+    const utf8Name = encodeURIComponent(fileName);
     response.setHeader('Content-Type', getMimeType(filePath));
     response.setHeader('Content-Length', stats.size);
-    response.setHeader('Content-Disposition', `inline; filename="${path.basename(filePath)}"`);
+    response.setHeader('Content-Disposition', 'inline; filename="' + asciiName + '"; filename*=UTF-8\x27\x27' + utf8Name);
     fs.createReadStream(filePath).pipe(response);
   } catch (error) {
     response.status(400).json({ error: error.message });

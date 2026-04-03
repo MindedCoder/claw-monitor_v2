@@ -345,10 +345,149 @@ async function navigateTo(id) {
   }
 }
 
+function isDrawerOpen() {
+  return document.getElementById('preview-drawer').classList.contains('open');
+}
+
+function goBack() {
+  if (isDrawerOpen()) {
+    closeDrawer();
+    return;
+  }
+  const directory = directoryCache.get(activeDirectoryId);
+  if (directory && directory.breadcrumb && directory.breadcrumb.length > 1) {
+    navigateTo(directory.breadcrumb[directory.breadcrumb.length - 2].id);
+  }
+}
+
+function openMatchModal() {
+  document.getElementById('match-overlay').classList.add('open');
+  document.getElementById('match-modal').classList.add('open');
+}
+
+function closeMatchModal() {
+  document.getElementById('match-overlay').classList.remove('open');
+  document.getElementById('match-modal').classList.remove('open');
+}
+
+function showPasteInput(matchBody) {
+  matchBody.innerHTML = '';
+  const hint = document.createElement('div');
+  hint.className = 'empty';
+  hint.textContent = '请粘贴包含路径的文本：';
+  hint.style.marginBottom = '10px';
+
+  const textarea = document.createElement('textarea');
+  textarea.className = 'match-textarea';
+  textarea.rows = 3;
+  textarea.placeholder = '长按粘贴内容...';
+
+  const confirmBtn = document.createElement('button');
+  confirmBtn.type = 'button';
+  confirmBtn.className = 'action';
+  confirmBtn.textContent = '识别';
+  confirmBtn.style.marginTop = '10px';
+  confirmBtn.addEventListener('click', () => {
+    const text = textarea.value;
+    if (!text || !text.trim()) return;
+    doMatch(text, matchBody);
+  });
+
+  matchBody.appendChild(hint);
+  matchBody.appendChild(textarea);
+  matchBody.appendChild(confirmBtn);
+}
+
+async function doMatch(text, matchBody) {
+  matchBody.innerHTML = '<div class="loading">正在识别路径...</div>';
+
+  try {
+    const response = await fetch(resolveServiceUrl('/api/match-paths'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text }),
+    });
+    const data = await response.json();
+    if (!data.matches || data.matches.length === 0) {
+      matchBody.innerHTML = '<div class="empty">未识别到匹配的路径。</div>';
+      return;
+    }
+
+    matchBody.innerHTML = '';
+    for (const item of data.matches) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'match-item';
+
+      const icon = document.createElement('span');
+      icon.className = 'match-icon';
+      icon.textContent = item.type === 'directory' ? '\uD83D\uDCC1' : '\uD83D\uDCC4';
+
+      const label = document.createElement('span');
+      label.className = 'match-path';
+      label.textContent = item.displayPath;
+
+      btn.appendChild(icon);
+      btn.appendChild(label);
+      btn.addEventListener('click', async () => {
+        closeMatchModal();
+        if (item.type === 'directory') {
+          await navigateTo(item.id);
+        } else {
+          await navigateTo(item.parentId);
+          await previewFile(item.id);
+        }
+      });
+      matchBody.appendChild(btn);
+    }
+  } catch (error) {
+    matchBody.innerHTML = '<div class="empty">' + escapeHtml(error.message || '识别失败') + '</div>';
+  }
+}
+
+async function smartMatch() {
+  const matchBody = document.getElementById('match-body');
+  openMatchModal();
+
+  try {
+    const text = await navigator.clipboard.readText();
+    if (!text || !text.trim()) {
+      showPasteInput(matchBody);
+      return;
+    }
+    await doMatch(text, matchBody);
+  } catch (_error) {
+    showPasteInput(matchBody);
+  }
+}
+
+function initSwipeBack() {
+  const minDistance = 80;
+  let startX = 0;
+  let startY = 0;
+
+  document.addEventListener('touchstart', (e) => {
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+  }, { passive: true });
+
+  document.addEventListener('touchend', (e) => {
+    const dx = e.changedTouches[0].clientX - startX;
+    const dy = Math.abs(e.changedTouches[0].clientY - startY);
+    if (Math.abs(dx) > minDistance && dy < Math.abs(dx) * 0.5) {
+      goBack();
+    }
+  }, { passive: true });
+}
+
 async function boot() {
   try {
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
     document.getElementById('drawer-close').addEventListener('click', closeDrawer);
+    document.getElementById('smart-match').addEventListener('click', smartMatch);
+    document.getElementById('match-overlay').addEventListener('click', closeMatchModal);
+    document.getElementById('match-close').addEventListener('click', closeMatchModal);
+    initSwipeBack();
     const rootDirectory = await ensureDirectoryLoaded('root');
     if (rootDirectory) {
       document.getElementById('app-title').textContent = rootDirectory.name;
