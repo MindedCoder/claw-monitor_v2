@@ -252,7 +252,7 @@ export async function startGateway(config) {
 
 // standalone mode
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  const confPath = process.argv[2] || resolve(__dirname, '../../data/config.json');
+  const confPath = process.env.AUTH_CONFIG_PATH || process.argv[2] || resolve(__dirname, '../../data/config.json');
   let gwConfig;
   if (existsSync(confPath)) {
     const full = JSON.parse(readFileSync(confPath, 'utf-8'));
