@@ -4,8 +4,10 @@ import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { randomBytes } from 'node:crypto';
 import { SessionStore } from './session.js';
-import { resolveTenant, getTenantSlug } from './tenant.js';
-import { connectDb, closeDb } from './db.js';
+import { resolveTenant } from './tenant.js';
+import { connectDb, closeDb, getDb } from './db.js';
+
+const COOKIE_NAME = 'claw_session';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -64,18 +66,12 @@ export async function startGateway(config) {
     });
   }
 
-  function cookieName(tenantPrefix) {
-    return `claw_session_${getTenantSlug(tenantPrefix)}`;
+  function setCookie(res, value, maxAge) {
+    res.setHeader('Set-Cookie', `${COOKIE_NAME}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAge / 1000)}`);
   }
 
-  function setCookie(res, tenantPrefix, value, maxAge) {
-    const name = cookieName(tenantPrefix);
-    res.setHeader('Set-Cookie', `${name}=${value}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(maxAge / 1000)}`);
-  }
-
-  function clearCookie(res, tenantPrefix) {
-    const name = cookieName(tenantPrefix);
-    res.setHeader('Set-Cookie', `${name}=; Path=/; HttpOnly; Max-Age=0`);
+  function clearCookie(res) {
+    res.setHeader('Set-Cookie', `${COOKIE_NAME}=; Path=/; HttpOnly; Max-Age=0`);
   }
 
   function redirect(res, url) {
@@ -122,17 +118,33 @@ export async function startGateway(config) {
 
         const tenant = resolveTenant(originalUri, config);
         const cookies = parseCookies(req);
-        const cName = cookieName(tenant.prefix);
-        const sid = cookies[cName];
-        console.log(`[auth/check] uri=${originalUri} tenant=${tenant.prefix} cookie=${cName} sid=${sid ? sid.slice(0, 8) + '...' : 'none'}`);
-        const user = sid ? await sessions.get(sid, tenant.prefix) : null;
-        if (user) {
-          console.log(`[auth/check] OK user=${user.name}`);
-          res.writeHead(200, { 'X-Auth-User': encodeURIComponent(user.name || '') });
-        } else {
+        const sid = cookies[COOKIE_NAME];
+        console.log(`[auth/check] uri=${originalUri} tenant=${tenant.prefix} sid=${sid ? sid.slice(0, 8) + '...' : 'none'}`);
+
+        const sessUser = sid ? await sessions.get(sid) : null;
+        if (!sessUser || !sessUser.phone) {
           console.log(`[auth/check] FAIL no valid session`);
           res.writeHead(401);
+          return res.end();
         }
+
+        // live tenant check from users collection
+        const dbUser = await getDb().collection('users').findOne(
+          { phone: sessUser.phone },
+          { projection: { tenants: 1, name: 1 } },
+        );
+        if (!dbUser) {
+          console.log(`[auth/check] FAIL user removed: ${sessUser.phone}`);
+          res.writeHead(401);
+          return res.end();
+        }
+        if (!Array.isArray(dbUser.tenants) || !dbUser.tenants.includes(tenant.prefix)) {
+          console.log(`[auth/check] FAIL user=${dbUser.name} no access to ${tenant.prefix}`);
+          res.writeHead(401);
+          return res.end();
+        }
+        console.log(`[auth/check] OK user=${dbUser.name} tenant=${tenant.prefix}`);
+        res.writeHead(200, { 'X-Auth-User': encodeURIComponent(dbUser.name || '') });
         return res.end();
       }
 
@@ -226,11 +238,9 @@ export async function startGateway(config) {
           return sendHtml(res, '<h3>认证失败</h3><a href="/auth/login">重试</a>', 403);
         }
 
-        const sid = await sessions.create(user, effectiveTenant.prefix);
-        const cName = cookieName(effectiveTenant.prefix);
-        const cookieStr = `${cName}=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ttl / 1000)}`;
-        console.log(`[callback] SUCCESS user=${user.name} tenant=${effectiveTenant.prefix} cookie=${cName} sid=${sid.slice(0, 8)}... rd=${rdParam}`);
-        console.log(`[callback] Set-Cookie: ${cookieStr.slice(0, 60)}...`);
+        const sid = await sessions.create(user);
+        const cookieStr = `${COOKIE_NAME}=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ttl / 1000)}`;
+        console.log(`[callback] SUCCESS user=${user.name} sid=${sid.slice(0, 8)}... rd=${rdParam}`);
         res.writeHead(302, {
           Location: rdParam,
           'Set-Cookie': cookieStr,
@@ -241,13 +251,11 @@ export async function startGateway(config) {
       // logout
       if (path === '/auth/logout') {
         const cookies = parseCookies(req);
-        const cName = cookieName(tenant.prefix);
-        const sid = cookies[cName];
+        const sid = cookies[COOKIE_NAME];
         if (sid) await sessions.destroy(sid);
-        const cNameLogout = cookieName(tenant.prefix);
         res.writeHead(302, {
           Location: '/',
-          'Set-Cookie': `${cNameLogout}=; Path=/; HttpOnly; Max-Age=0`,
+          'Set-Cookie': `${COOKIE_NAME}=; Path=/; HttpOnly; Max-Age=0`,
         });
         return res.end();
       }
