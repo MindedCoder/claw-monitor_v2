@@ -109,29 +109,42 @@ export default {
    */
   async getUser({ body, config, tenant }) {
     const { phone, code, password, loginType } = body || {};
-    if (!phone) return null;
+    console.log(`[phone.getUser] tenant=${tenant} phone=${phone} loginType=${loginType} hasCode=${!!code} hasPassword=${!!password}`);
+    if (!phone) { console.log('[phone.getUser] FAIL no phone'); return null; }
 
     const db = getDb();
 
     // password login
     if (loginType === 'password' || (!code && password)) {
-      if (!password) return null;
+      if (!password) { console.log('[phone.getUser] FAIL no password'); return null; }
       const user = await db.collection('users').findOne({ phone, tenants: tenant });
-      if (!user || !user.password) return null;
+      console.log(`[phone.getUser] db query {phone,tenants:${tenant}} → found=${!!user} hasPwd=${!!user?.password} hash=${user?.password?.slice(0,7) || 'n/a'}`);
+      if (!user || !user.password) {
+        // diagnose: check if user exists at all
+        const any = await db.collection('users').findOne({ phone });
+        console.log(`[phone.getUser] FAIL user not in tenant; user exists at all=${!!any} their tenants=${JSON.stringify(any?.tenants)}`);
+        return null;
+      }
 
       // bcrypt hashes start with $2a$/$2b$/$2y$
       const isHashed = /^\$2[aby]\$/.test(user.password);
       if (isHashed) {
-        if (!(await bcrypt.compare(password, user.password))) return null;
+        const ok = await bcrypt.compare(password, user.password);
+        console.log(`[phone.getUser] bcrypt.compare → ${ok}`);
+        if (!ok) return null;
       } else {
         // legacy plaintext — verify, then upgrade in place
-        if (user.password !== password) return null;
+        const ok = user.password === password;
+        console.log(`[phone.getUser] plain compare → ${ok}`);
+        if (!ok) return null;
         const hashed = await bcrypt.hash(password, 10);
         await db.collection('users').updateOne(
           { _id: user._id },
           { $set: { password: hashed } },
         );
+        console.log(`[phone.getUser] upgraded plain → bcrypt for ${phone}`);
       }
+      console.log(`[phone.getUser] SUCCESS user=${user.name} phone=${phone}`);
       return { name: user.name, phone: user.phone, provider: 'phone' };
     }
 
