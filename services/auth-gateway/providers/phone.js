@@ -1,4 +1,5 @@
 import { randomInt, randomBytes, createHmac } from 'node:crypto';
+import bcrypt from 'bcryptjs';
 import { getDb } from '../db.js';
 
 /**
@@ -117,7 +118,20 @@ export default {
       if (!password) return null;
       const user = await db.collection('users').findOne({ phone, tenants: tenant });
       if (!user || !user.password) return null;
-      if (user.password !== password) return null;
+
+      // bcrypt hashes start with $2a$/$2b$/$2y$
+      const isHashed = /^\$2[aby]\$/.test(user.password);
+      if (isHashed) {
+        if (!(await bcrypt.compare(password, user.password))) return null;
+      } else {
+        // legacy plaintext — verify, then upgrade in place
+        if (user.password !== password) return null;
+        const hashed = await bcrypt.hash(password, 10);
+        await db.collection('users').updateOne(
+          { _id: user._id },
+          { $set: { password: hashed } },
+        );
+      }
       return { name: user.name, phone: user.phone, provider: 'phone' };
     }
 

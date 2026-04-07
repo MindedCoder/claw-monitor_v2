@@ -8,8 +8,7 @@ data:
     {
       "port": 4180,
       "sessionTtlMs": 604800000,
-      "authProvider": "password",
-      "provider": { "password": "bfelab11223" },
+      "authProvider": "phone",
       "mongodb": {
         "database": "claw"
       },
@@ -18,29 +17,5 @@ data:
         "templateCode": "SMS_172005076"
       },
       "tenants": {
-        "/huangcan": {
-          "authProvider": "phone",
-          "provider": {}
-        },
-        "/jiabo": {
-          "authProvider": "password",
-          "provider": {}
-        },
-        "/xiehu": {
-          "authProvider": "phone",
-          "provider": {}
-        },
-        "/bfetest": {
-          "authProvider": "password",
-          "provider": { "appId": "cli_a9327e7bd53cdbc9", "appSecret": "nGBeMIy4os5dykHxbGp6SdRgEKxD5co3" }
-        },
-        "/monitor": {
-          "authProvider": "password",
-          "provider": { "appId": "cli_a93bb49ab0fa1bc6", "appSecret": "QwnekxYjU4TH6OvA4MGTter5ceRFGUGZ" }
-        },
-        "/kai": {
-          "authProvider": "password",
-          "provider": { "appId": "cli_a941f83f4fb99cd6", "appSecret": "wSscNopYHalfGovpzUXZBh0qKxXQUzbb" }
-        }
       }
     }
