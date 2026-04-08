@@ -9,6 +9,7 @@ let lastMatchState = null;
 let returnToMatchResults = false;
 let smartMatchDebounceTimer = null;
 let latestMatchRequestId = 0;
+const FILE_SEARCH_MIN_QUERY_LENGTH = 2;
 
 function escapeHtml(value) {
   return String(value)
@@ -405,6 +406,9 @@ function closeMatchResults() {
 function renderMatchResults(text, matches) {
   const matchResults = document.getElementById('match-results');
   const browserCard = document.getElementById('browser-card');
+  const resultTitle = matches.length && matches[0].searchKind === 'file-search'
+    ? '文件名搜索结果'
+    : '识别结果';
   lastMatchState = { text, matches };
   returnToMatchResults = false;
   browserCard.classList.add('hidden');
@@ -424,7 +428,7 @@ function renderMatchResults(text, matches) {
 
       const title = document.createElement('h2');
       title.className = 'section-title';
-      title.textContent = '识别结果';
+      title.textContent = resultTitle;
 
       const actions = document.createElement('div');
       actions.className = 'head-actions';
@@ -527,7 +531,30 @@ async function doMatch(text) {
     if (requestId !== latestMatchRequestId) {
       return;
     }
-    renderMatchResults(text, data.matches || []);
+
+    if (Array.isArray(data.matches) && data.matches.length) {
+      renderMatchResults(
+        text,
+        data.matches.map((item) => ({ ...item, searchKind: 'path-match' }))
+      );
+      return;
+    }
+
+    if (text.trim().length < FILE_SEARCH_MIN_QUERY_LENGTH) {
+      renderMatchResults(text, []);
+      return;
+    }
+
+    const fileData = await fetchJson(
+      resolveServiceUrl('/api/search-files?q=' + encodeURIComponent(text.trim()))
+    );
+    if (requestId !== latestMatchRequestId) {
+      return;
+    }
+    renderMatchResults(
+      text,
+      (fileData.matches || []).map((item) => ({ ...item, searchKind: 'file-search' }))
+    );
   } catch (error) {
     if (requestId !== latestMatchRequestId) {
       return;

@@ -53,6 +53,9 @@ const MIME_TYPES = {
 
 const directoryPayloadCache = new Map();
 const filePayloadCache = new Map();
+const FILE_SEARCH_LIMIT = 30;
+const FILE_SEARCH_MIN_QUERY_LENGTH = 2;
+const FILE_SEARCH_SKIP_DIRS = new Set(['node_modules', 'dist', 'build']);
 
 function getOrCreateId(filePath) {
   if (filePath === ROOT_PATH) {
@@ -219,6 +222,93 @@ function getDefaultDirectoryPath() {
   return ROOT_PATH;
 }
 
+function getWorkspacePath() {
+  return path.join(ROOT_PATH, DEFAULT_ENTRY_NAME);
+}
+
+function searchWorkspaceFiles(query) {
+  const normalizedQuery = query.trim().toLowerCase();
+  if (normalizedQuery.length < FILE_SEARCH_MIN_QUERY_LENGTH) {
+    return [];
+  }
+
+  const workspacePath = getWorkspacePath();
+  let workspaceStats;
+  try {
+    workspaceStats = fs.statSync(workspacePath);
+  } catch (_error) {
+    return [];
+  }
+
+  if (!workspaceStats.isDirectory()) {
+    return [];
+  }
+
+  const rootBase = path.basename(ROOT_PATH);
+  const matches = [];
+  const queue = [workspacePath];
+
+  while (queue.length && matches.length < FILE_SEARCH_LIMIT) {
+    const currentPath = queue.shift();
+    let entries = [];
+    try {
+      entries = fs.readdirSync(currentPath, { withFileTypes: true });
+    } catch (_error) {
+      continue;
+    }
+
+    entries.sort((left, right) => {
+      if (left.isDirectory() !== right.isDirectory()) {
+        return left.isDirectory() ? -1 : 1;
+      }
+      return left.name.localeCompare(right.name);
+    });
+
+    for (const entry of entries) {
+      if (entry.name.startsWith('.')) {
+        continue;
+      }
+
+      const entryPath = path.join(currentPath, entry.name);
+      if (entry.isDirectory()) {
+        if (!FILE_SEARCH_SKIP_DIRS.has(entry.name)) {
+          queue.push(entryPath);
+        }
+        continue;
+      }
+
+      if (!entry.isFile() || !entry.name.toLowerCase().includes(normalizedQuery)) {
+        continue;
+      }
+
+      matches.push({
+        id: getOrCreateId(entryPath),
+        parentId: getOrCreateId(path.dirname(entryPath)),
+        name: entry.name,
+        type: 'file',
+        displayPath: rootBase + entryPath.slice(ROOT_PATH.length),
+      });
+
+      if (matches.length >= FILE_SEARCH_LIMIT) {
+        break;
+      }
+    }
+  }
+
+  matches.sort((left, right) => {
+    const leftName = left.name.toLowerCase();
+    const rightName = right.name.toLowerCase();
+    const leftStarts = leftName.startsWith(normalizedQuery);
+    const rightStarts = rightName.startsWith(normalizedQuery);
+    if (leftStarts !== rightStarts) {
+      return leftStarts ? -1 : 1;
+    }
+    return leftName.localeCompare(rightName);
+  });
+
+  return matches;
+}
+
 const app = express();
 app.use(express.json());
 app.use(express.static(PUBLIC_DIR));
@@ -277,6 +367,15 @@ app.post('/api/match-paths', (request, response) => {
     }
 
     response.json({ matches });
+  } catch (error) {
+    response.status(500).json({ error: error.message });
+  }
+});
+
+app.get('/api/search-files', (request, response) => {
+  try {
+    const query = typeof request.query.q === 'string' ? request.query.q : '';
+    response.json({ matches: searchWorkspaceFiles(query) });
   } catch (error) {
     response.status(500).json({ error: error.message });
   }
