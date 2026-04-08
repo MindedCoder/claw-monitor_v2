@@ -5,6 +5,11 @@ const pendingDirectoryRequests = new Map();
 const pendingFileRequests = new Map();
 let activeDirectoryId = 'root';
 let activeFileId = null;
+let lastMatchState = null;
+let returnToMatchResults = false;
+let smartMatchDebounceTimer = null;
+let latestMatchRequestId = 0;
+const FILE_SEARCH_MIN_QUERY_LENGTH = 2;
 
 function escapeHtml(value) {
   return String(value)
@@ -217,8 +222,14 @@ function renderDirectory(directory) {
   const entries = document.getElementById('entries');
   const currentPath = document.getElementById('current-path');
   const backButton = document.getElementById('back-button');
+  const browserCard = document.getElementById('browser-card');
   const children = directory.children || [];
 
+  document.getElementById('match-results').innerHTML = '';
+  if (!returnToMatchResults) {
+    lastMatchState = null;
+  }
+  browserCard.classList.remove('hidden');
   currentPath.innerHTML = '';
   for (let index = 0; index < directory.breadcrumb.length; index += 1) {
     const item = directory.breadcrumb[index];
@@ -245,6 +256,10 @@ function renderDirectory(directory) {
   backButton.disabled = directory.breadcrumb.length <= 1;
   backButton.style.opacity = directory.breadcrumb.length <= 1 ? '0.45' : '1';
   backButton.onclick = () => {
+    if (returnToMatchResults && lastMatchState) {
+      restoreMatchResults();
+      return;
+    }
     if (directory.breadcrumb.length > 1) {
       navigateTo(directory.breadcrumb[directory.breadcrumb.length - 2].id);
     }
@@ -354,52 +369,157 @@ function goBack() {
     closeDrawer();
     return;
   }
+  if (returnToMatchResults && lastMatchState) {
+    restoreMatchResults();
+    return;
+  }
+  const browserCard = document.getElementById('browser-card');
+  if (browserCard.classList.contains('hidden')) {
+    restoreMatchResults();
+    return;
+  }
   const directory = directoryCache.get(activeDirectoryId);
   if (directory && directory.breadcrumb && directory.breadcrumb.length > 1) {
     navigateTo(directory.breadcrumb[directory.breadcrumb.length - 2].id);
   }
 }
 
-function openMatchModal() {
-  document.getElementById('match-overlay').classList.add('open');
-  document.getElementById('match-modal').classList.add('open');
+function restoreMatchResults() {
+  const browserCard = document.getElementById('browser-card');
+  browserCard.classList.add('hidden');
+  if (lastMatchState) {
+    returnToMatchResults = false;
+    renderMatchResults(lastMatchState.text, lastMatchState.matches);
+    return;
+  }
+  document.getElementById('match-results').innerHTML = '';
+  browserCard.classList.remove('hidden');
 }
 
-function closeMatchModal() {
-  document.getElementById('match-overlay').classList.remove('open');
-  document.getElementById('match-modal').classList.remove('open');
+function closeMatchResults() {
+  returnToMatchResults = false;
+  lastMatchState = null;
+  document.getElementById('match-results').innerHTML = '';
+  document.getElementById('browser-card').classList.remove('hidden');
 }
 
-function showPasteInput(matchBody) {
-  matchBody.innerHTML = '';
-  const hint = document.createElement('div');
-  hint.className = 'empty';
-  hint.textContent = '请粘贴包含路径的文本：';
-  hint.style.marginBottom = '10px';
+function renderMatchResults(text, matches) {
+  const matchResults = document.getElementById('match-results');
+  const browserCard = document.getElementById('browser-card');
+  const resultTitle = matches.length && matches[0].searchKind === 'file-search'
+    ? '文件名搜索结果'
+    : '识别结果';
+  lastMatchState = { text, matches };
+  returnToMatchResults = false;
+  browserCard.classList.add('hidden');
+  matchResults.innerHTML = '';
 
-  const textarea = document.createElement('textarea');
-  textarea.className = 'match-textarea';
-  textarea.rows = 3;
-  textarea.placeholder = '长按粘贴内容...';
+  const items = matches.length
+    ? matches
+    : [{ type: 'empty', displayPath: '未识别到匹配的路径。' }];
 
-  const confirmBtn = document.createElement('button');
-  confirmBtn.type = 'button';
-  confirmBtn.className = 'action';
-  confirmBtn.textContent = '识别';
-  confirmBtn.style.marginTop = '10px';
-  confirmBtn.addEventListener('click', () => {
-    const text = textarea.value;
-    if (!text || !text.trim()) return;
-    doMatch(text, matchBody);
+  items.forEach((item, index) => {
+    const card = document.createElement('section');
+    card.className = 'card browser';
+
+    if (index === 0) {
+      const head = document.createElement('div');
+      head.className = 'section-head';
+
+      const title = document.createElement('h2');
+      title.className = 'section-title';
+      title.textContent = resultTitle;
+
+      const actions = document.createElement('div');
+      actions.className = 'head-actions';
+
+      const backButton = document.createElement('button');
+      backButton.type = 'button';
+      backButton.className = 'back-button';
+      backButton.textContent = '返回上一级';
+      backButton.addEventListener('click', closeMatchResults);
+
+      actions.appendChild(backButton);
+      head.appendChild(title);
+      head.appendChild(actions);
+      card.appendChild(head);
+
+      const summary = document.createElement('div');
+      summary.className = 'path';
+      summary.textContent = text;
+      card.appendChild(summary);
+    }
+
+    const list = document.createElement('div');
+    list.className = 'folder-grid';
+
+    if (item.type === 'empty') {
+      list.innerHTML = `<div class="empty">${escapeHtml(item.displayPath)}</div>`;
+    } else {
+      const entry = document.createElement('button');
+      entry.type = 'button';
+      entry.className = 'entry';
+
+      const top = document.createElement('div');
+      top.className = 'entry-top';
+
+      const icon = document.createElement('div');
+      icon.className = 'icon';
+      icon.textContent = item.type === 'directory' ? '📁' : '📄';
+
+      const name = document.createElement('div');
+      name.className = 'name';
+      name.textContent = item.name || item.displayPath;
+
+      top.appendChild(icon);
+      top.appendChild(name);
+      entry.appendChild(top);
+
+      const meta = document.createElement('div');
+      meta.className = 'path';
+      meta.textContent = item.displayPath;
+      entry.appendChild(meta);
+
+      entry.addEventListener('click', async () => {
+        returnToMatchResults = true;
+        matchResults.innerHTML = '';
+        browserCard.classList.remove('hidden');
+        if (item.type === 'directory') {
+          await navigateTo(item.id);
+        } else {
+          await navigateTo(item.parentId);
+          await previewFile(item.id);
+        }
+      });
+
+      list.appendChild(entry);
+    }
+
+    card.appendChild(list);
+    matchResults.appendChild(card);
   });
-
-  matchBody.appendChild(hint);
-  matchBody.appendChild(textarea);
-  matchBody.appendChild(confirmBtn);
 }
 
-async function doMatch(text, matchBody) {
-  matchBody.innerHTML = '<div class="loading">正在识别路径...</div>';
+async function doMatch(text) {
+  const requestId = ++latestMatchRequestId;
+  const matchResults = document.getElementById('match-results');
+  const browserCard = document.getElementById('browser-card');
+  browserCard.classList.add('hidden');
+  matchResults.innerHTML = `
+    <section class="card browser">
+      <div class="section-head">
+        <h2 class="section-title">识别结果</h2>
+        <div class="head-actions">
+          <button class="back-button" id="inline-match-back" type="button">返回上一级</button>
+        </div>
+      </div>
+      <div class="path">${escapeHtml(text)}</div>
+      <div class="folder-grid">
+        <div class="loading">正在识别路径...</div>
+      </div>
+    </section>
+  `;
+  document.getElementById('inline-match-back').addEventListener('click', closeMatchResults);
 
   try {
     const response = await fetch(resolveServiceUrl('/api/match-paths'), {
@@ -408,57 +528,82 @@ async function doMatch(text, matchBody) {
       body: JSON.stringify({ text }),
     });
     const data = await response.json();
-    if (!data.matches || data.matches.length === 0) {
-      matchBody.innerHTML = '<div class="empty">未识别到匹配的路径。</div>';
+    if (requestId !== latestMatchRequestId) {
       return;
     }
 
-    matchBody.innerHTML = '';
-    for (const item of data.matches) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = 'match-item';
-
-      const icon = document.createElement('span');
-      icon.className = 'match-icon';
-      icon.textContent = item.type === 'directory' ? '\uD83D\uDCC1' : '\uD83D\uDCC4';
-
-      const label = document.createElement('span');
-      label.className = 'match-path';
-      label.textContent = item.displayPath;
-
-      btn.appendChild(icon);
-      btn.appendChild(label);
-      btn.addEventListener('click', async () => {
-        closeMatchModal();
-        if (item.type === 'directory') {
-          await navigateTo(item.id);
-        } else {
-          await navigateTo(item.parentId);
-          await previewFile(item.id);
-        }
-      });
-      matchBody.appendChild(btn);
+    if (Array.isArray(data.matches) && data.matches.length) {
+      renderMatchResults(
+        text,
+        data.matches.map((item) => ({ ...item, searchKind: 'path-match' }))
+      );
+      return;
     }
+
+    if (text.trim().length < FILE_SEARCH_MIN_QUERY_LENGTH) {
+      renderMatchResults(text, []);
+      return;
+    }
+
+    const fileData = await fetchJson(
+      resolveServiceUrl('/api/search-files?q=' + encodeURIComponent(text.trim()))
+    );
+    if (requestId !== latestMatchRequestId) {
+      return;
+    }
+    renderMatchResults(
+      text,
+      (fileData.matches || []).map((item) => ({ ...item, searchKind: 'file-search' }))
+    );
   } catch (error) {
-    matchBody.innerHTML = '<div class="empty">' + escapeHtml(error.message || '识别失败') + '</div>';
+    if (requestId !== latestMatchRequestId) {
+      return;
+    }
+    renderMatchResults(text, [{ type: 'empty', displayPath: error.message || '识别失败' }]);
   }
 }
 
-async function smartMatch() {
-  const matchBody = document.getElementById('match-body');
-  openMatchModal();
-
-  try {
-    const text = await navigator.clipboard.readText();
-    if (!text || !text.trim()) {
-      showPasteInput(matchBody);
-      return;
-    }
-    await doMatch(text, matchBody);
-  } catch (_error) {
-    showPasteInput(matchBody);
+async function submitSmartMatchInput() {
+  const input = document.getElementById('smart-match-input');
+  const text = input.value;
+  if (!text || !text.trim()) {
+    closeMatchResults();
+    return;
   }
+
+  await doMatch(text);
+}
+
+function clearSmartMatchInput() {
+  const input = document.getElementById('smart-match-input');
+  input.value = '';
+  if (smartMatchDebounceTimer) {
+    window.clearTimeout(smartMatchDebounceTimer);
+    smartMatchDebounceTimer = null;
+  }
+  latestMatchRequestId += 1;
+  closeMatchResults();
+  input.focus();
+}
+
+function scheduleSmartMatch() {
+  const input = document.getElementById('smart-match-input');
+  const text = input.value;
+
+  if (smartMatchDebounceTimer) {
+    window.clearTimeout(smartMatchDebounceTimer);
+  }
+
+  if (!text || !text.trim()) {
+    latestMatchRequestId += 1;
+    closeMatchResults();
+    return;
+  }
+
+  smartMatchDebounceTimer = window.setTimeout(() => {
+    smartMatchDebounceTimer = null;
+    void doMatch(input.value);
+  }, 300);
 }
 
 function initSwipeBack() {
@@ -484,9 +629,8 @@ async function boot() {
   try {
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
     document.getElementById('drawer-close').addEventListener('click', closeDrawer);
-    document.getElementById('smart-match').addEventListener('click', smartMatch);
-    document.getElementById('match-overlay').addEventListener('click', closeMatchModal);
-    document.getElementById('match-close').addEventListener('click', closeMatchModal);
+    document.getElementById('smart-match-submit').addEventListener('click', clearSmartMatchInput);
+    document.getElementById('smart-match-input').addEventListener('input', scheduleSmartMatch);
     initSwipeBack();
     const rootDirectory = await ensureDirectoryLoaded('root');
     if (rootDirectory) {
