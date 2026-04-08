@@ -9,6 +9,74 @@ import { connectDb, closeDb, getDb } from './db.js';
 
 const COOKIE_NAME = 'claw_session';
 
+function renderStorageTestPage() {
+  return `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Storage Test</title>
+<style>
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC",sans-serif;background:#0d1117;color:#c9d1d9;padding:16px;font-size:14px;line-height:1.6;margin:0}
+h2{font-size:16px;margin:0 0 12px;color:#58a6ff}
+.row{background:#161b22;border:1px solid #30363d;border-radius:6px;padding:10px 12px;margin-bottom:8px;word-break:break-all}
+.k{color:#8b949e;font-size:12px}
+.v{color:#c9d1d9;margin-top:2px}
+.ok{color:#3fb950}
+.bad{color:#f85149}
+.ua{font-size:11px;color:#6e7681;margin-top:2px}
+button{background:#238636;color:#fff;border:0;border-radius:6px;padding:10px 16px;font-size:14px;margin:4px 4px 4px 0;cursor:pointer}
+button.gray{background:#30363d}
+.note{font-size:12px;color:#8b949e;margin-top:12px;padding:10px;background:#161b22;border-radius:6px;border-left:3px solid #58a6ff}
+</style></head><body>
+<h2>=== Storage Test ===</h2>
+<div class="row"><div class="k">当前时间</div><div class="v" id="now"></div></div>
+<div class="row"><div class="k">UA</div><div class="ua" id="ua"></div></div>
+
+<div class="row"><div class="k">[Cookie]   storage_test_cookie</div><div class="v" id="ck"></div></div>
+<div class="row"><div class="k">[Local]    storage_test_local</div><div class="v" id="ls"></div></div>
+<div class="row"><div class="k">[Session]  storage_test_session</div><div class="v" id="ss"></div></div>
+
+<button onclick="writeAll()">重新写入全部</button>
+<button class="gray" onclick="clearAll()">清空全部</button>
+<button class="gray" onclick="location.reload()">刷新</button>
+
+<div class="note">
+说明：<br>
+1. 第一次访问 → 点"重新写入全部"，然后截图<br>
+2. "被踢"或过段时间后再访问 → 直接截图（不要点任何按钮）<br>
+3. 对比两次截图，看谁还在、谁丢了<br>
+Cookie Max-Age=7 天；localStorage 关页面不丢；sessionStorage 关标签即丢
+</div>
+
+<script>
+function fmt(ts){if(!ts)return '';const d=new Date(+ts);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0')+' '+String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0')+':'+String(d.getSeconds()).padStart(2,'0')}
+function ago(ts){if(!ts)return '';const s=Math.floor((Date.now()-+ts)/1000);if(s<60)return s+'秒前';if(s<3600)return Math.floor(s/60)+'分钟前';if(s<86400)return Math.floor(s/3600)+'小时前';return Math.floor(s/86400)+'天前'}
+function getCookie(name){const m=document.cookie.match(new RegExp('(?:^|; )'+name+'=([^;]*)'));return m?decodeURIComponent(m[1]):''}
+function show(id,val){const el=document.getElementById(id);if(val){el.innerHTML='<span class="ok">✓ '+fmt(val)+'</span> <span class="k">('+ago(val)+'写入)</span>'}else{el.innerHTML='<span class="bad">✗ 已丢失/未写入</span>'}}
+function refresh(){
+  document.getElementById('now').textContent=fmt(Date.now());
+  document.getElementById('ua').textContent=navigator.userAgent;
+  show('ck',getCookie('storage_test_cookie'));
+  try{show('ls',localStorage.getItem('storage_test_local'))}catch(e){document.getElementById('ls').innerHTML='<span class="bad">无法访问 localStorage</span>'}
+  try{show('ss',sessionStorage.getItem('storage_test_session'))}catch(e){document.getElementById('ss').innerHTML='<span class="bad">无法访问 sessionStorage</span>'}
+}
+function writeAll(){
+  const ts=String(Date.now());
+  document.cookie='storage_test_cookie='+ts+'; Path=/; Max-Age='+(7*24*3600)+'; SameSite=Lax';
+  try{localStorage.setItem('storage_test_local',ts)}catch(e){}
+  try{sessionStorage.setItem('storage_test_session',ts)}catch(e){}
+  refresh();
+}
+function clearAll(){
+  document.cookie='storage_test_cookie=; Path=/; Max-Age=0';
+  try{localStorage.removeItem('storage_test_local')}catch(e){}
+  try{sessionStorage.removeItem('storage_test_session')}catch(e){}
+  refresh();
+}
+refresh();
+</script>
+</body></html>`;
+}
+
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // load login.html template once
@@ -99,6 +167,11 @@ export async function startGateway(config) {
       if (path === '/healthz') {
         res.writeHead(200);
         return res.end('ok');
+      }
+
+      // storage persistence test page (no auth, for debugging WebView storage behavior)
+      if (path === '/auth/storage-test') {
+        return sendHtml(res, renderStorageTestPage());
       }
 
       // nginx auth_request check
