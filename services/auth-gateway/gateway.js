@@ -314,11 +314,35 @@ export async function startGateway(config) {
         const sid = await sessions.create(user);
         const cookieStr = `${COOKIE_NAME}=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ttl / 1000)}`;
         console.log(`[callback] SUCCESS user=${user.name} sid=${sid.slice(0, 8)}... rd=${rdParam}`);
+        // JSON client (AJAX login): return sid so client can back it up in localStorage
+        if (req.headers['content-type']?.includes('application/json')) {
+          res.writeHead(200, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Set-Cookie': cookieStr,
+          });
+          return res.end(JSON.stringify({ ok: true, sid, rd: rdParam, user: { name: user.name } }));
+        }
         res.writeHead(302, {
           Location: rdParam,
           'Set-Cookie': cookieStr,
         });
         return res.end();
+      }
+
+      // Restore session from client-side backup (localStorage fallback for WebViews that wipe cookies)
+      if (path === '/auth/restore-session' && req.method === 'POST') {
+        const body = await readJson(req);
+        const sid = body?.sid;
+        if (!sid) return sendJson(res, { error: 'missing sid' }, 400);
+        const user = await sessions.get(sid);
+        if (!user) return sendJson(res, { error: 'invalid' }, 401);
+        const cookieStr = `${COOKIE_NAME}=${sid}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ttl / 1000)}`;
+        console.log(`[restore] SUCCESS user=${user.name} sid=${sid.slice(0, 8)}...`);
+        res.writeHead(200, {
+          'Content-Type': 'application/json; charset=utf-8',
+          'Set-Cookie': cookieStr,
+        });
+        return res.end(JSON.stringify({ ok: true }));
       }
 
       // logout

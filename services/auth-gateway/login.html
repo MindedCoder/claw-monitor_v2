@@ -220,8 +220,25 @@ input::placeholder{color:#484f58}
 <script>
 const TENANT = '{{TENANT}}';
 const RD = '{{RD}}';
+const SID_KEY = 'claw_sid_' + TENANT;
 let countdown = 0;
 let timer = null;
+
+// Try to restore session from localStorage (WebView cookie-wipe fallback).
+// If the backup sid is still valid in DB, gateway will Set-Cookie and we jump to rd.
+(async function tryRestore(){
+  try{
+    const sid = localStorage.getItem(SID_KEY);
+    if(!sid) return;
+    const r = await fetch('/auth/restore-session', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sid }),
+    });
+    if(r.ok){ location.href = RD || '/'; return; }
+    localStorage.removeItem(SID_KEY);
+  }catch{}
+})();
 
 function showMsg(text, ok) {
   const el = document.getElementById('msg');
@@ -286,48 +303,52 @@ async function sendCode() {
   }
 }
 
-function doSmsLogin(e) {
+async function postLogin(payload) {
+  const r = await fetch('/auth/callback', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  const d = await r.json().catch(() => ({}));
+  if (r.ok && d.ok) {
+    if (d.sid) { try { localStorage.setItem(SID_KEY, d.sid); } catch {} }
+    location.href = d.rd || RD || '/';
+    return true;
+  }
+  showMsg(d.message || '登录失败', false);
+  return false;
+}
+
+async function doSmsLogin(e) {
+  if (e) e.preventDefault();
   const phone = document.getElementById('phone').value.trim();
   const code = document.getElementById('code').value.trim();
-  if (!phone || !code) {
-    if (e) e.preventDefault();
-    return showMsg('请填写完整', false);
-  }
-  document.getElementById('hiddenPhone').value = phone;
-  document.getElementById('hiddenCode').value = code;
-  document.getElementById('hiddenRd').value = RD;
-  document.getElementById('hiddenTenant').value = TENANT;
+  if (!phone || !code) return showMsg('请填写完整', false);
+  try {
+    await postLogin({ phone, code, loginType: 'sms', rd: RD, tenant: TENANT });
+  } catch { showMsg('网络错误', false); }
+}
+
+async function doPwdLogin(e) {
+  if (e) e.preventDefault();
+  const phone = document.getElementById('pwdPhone').value.trim();
+  const password = document.getElementById('pwdPassword').value;
+  if (!phone || !password) return showMsg('请填写完整', false);
+  try {
+    await postLogin({ phone, password, loginType: 'password', rd: RD, tenant: TENANT });
+  } catch { showMsg('网络错误', false); }
 }
 
 document.getElementById('phone').addEventListener('keydown', e => {
   if (e.key === 'Enter') sendCode();
 });
 document.getElementById('code').addEventListener('keydown', e => {
-  if (e.key === 'Enter') {
-    e.preventDefault();
-    doSmsLogin();
-    if (document.getElementById('hiddenPhone').value) {
-      document.getElementById('smsForm').submit();
-    }
-  }
+  if (e.key === 'Enter') { e.preventDefault(); doSmsLogin(); }
 });
-document.getElementById('smsForm').addEventListener('submit', e => {
-  doSmsLogin(e);
-});
-
-// === Password login ===
-document.getElementById('pwdForm').addEventListener('submit', e => {
-  const phone = document.getElementById('pwdPhone').value.trim();
-  const pwd = document.getElementById('pwdPassword').value;
-  if (!phone || !pwd) {
-    e.preventDefault();
-    return showMsg('请填写完整', false);
-  }
-  document.getElementById('pwdRd').value = RD;
-  document.getElementById('pwdTenant').value = TENANT;
-});
+document.getElementById('smsForm').addEventListener('submit', doSmsLogin);
+document.getElementById('pwdForm').addEventListener('submit', doPwdLogin);
 document.getElementById('pwdPassword').addEventListener('keydown', e => {
-  if (e.key === 'Enter') document.getElementById('pwdForm').requestSubmit();
+  if (e.key === 'Enter') { e.preventDefault(); doPwdLogin(); }
 });
 </script>
 </body>
