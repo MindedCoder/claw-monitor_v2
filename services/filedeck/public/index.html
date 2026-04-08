@@ -13,11 +13,29 @@
       </header>
 
       <div class="stack">
-        <section class="card browser">
+        <div class="smart-bar smart-bar-outer">
+          <button class="back-button smart-button" id="smart-match" type="button">智能识别</button>
+          <div class="smart-input-wrap">
+            <textarea
+              class="smart-input"
+              id="smart-match-input"
+              rows="2"
+              placeholder="粘贴路径或文本后搜索"
+            ></textarea>
+            <button class="smart-input-action" id="smart-match-submit" type="button" aria-label="清空输入">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <path
+                  d="M6.53 5.47 12 10.94l5.47-5.47 1.06 1.06L13.06 12l5.47 5.47-1.06 1.06L12 13.06l-5.47 5.47-1.06-1.06L10.94 12 5.47 6.53l1.06-1.06Z"
+                />
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div id="match-results"></div>
+        <section class="card browser" id="browser-card">
           <div class="section-head">
             <h2 class="section-title">目录</h2>
             <div class="head-actions">
-              <button class="back-button" id="smart-match" type="button">智能识别</button>
               <button class="back-button" id="back-button" type="button">返回上一级</button>
             </div>
           </div>
@@ -28,15 +46,6 @@
         </section>
       </div>
     </main>
-
-    <div class="match-overlay" id="match-overlay"></div>
-    <div class="match-modal" id="match-modal">
-      <div class="match-header">
-        <span class="match-title">识别结果</span>
-        <button class="drawer-close" id="match-close" type="button">&times;</button>
-      </div>
-      <div class="match-body" id="match-body"></div>
-    </div>
 
     <div class="drawer-overlay" id="drawer-overlay"></div>
     <section class="drawer" id="preview-drawer" aria-hidden="true">
