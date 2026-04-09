@@ -13,7 +13,7 @@ data:
         "database": "claw"
       },
       "sms": {
-        "signName": "BFELAB",
+        "signName": "巴菲信息",
         "templateCode": "SMS_172005076"
       },
       "tenants": {

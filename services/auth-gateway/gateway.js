@@ -211,6 +211,17 @@ export async function startGateway(config) {
           res.writeHead(401);
           return res.end();
         }
+        // admin bypass: anyone in the admins collection can access every tenant
+        const adminDoc = await getDb().collection('admins').findOne(
+          { phone: sessUser.phone },
+          { projection: { role: 1 } },
+        );
+        if (adminDoc) {
+          console.log(`[auth/check] OK admin=${dbUser.name} role=${adminDoc.role || 'admin'} bypass tenant=${tenant.prefix}`);
+          res.writeHead(200, { 'X-Auth-User': encodeURIComponent(dbUser.name || '') });
+          return res.end();
+        }
+
         if (!Array.isArray(dbUser.tenants) || !dbUser.tenants.includes(tenant.prefix)) {
           console.log(`[auth/check] FAIL user=${dbUser.name} no access to ${tenant.prefix}`);
           res.writeHead(401);
@@ -304,11 +315,12 @@ export async function startGateway(config) {
           }
         }
 
-        if (!user) {
+        if (!user || user._error) {
+          const msg = user?._error || '认证失败';
           if (req.headers['content-type']?.includes('application/json')) {
-            return sendJson(res, { message: '验证码错误或已过期' }, 403);
+            return sendJson(res, { message: msg }, 403);
           }
-          return sendHtml(res, '<h3>认证失败</h3><a href="/auth/login">重试</a>', 403);
+          return sendHtml(res, `<h3>${msg}</h3><a href="/auth/login">重试</a>`, 403);
         }
 
         const sid = await sessions.create(user);

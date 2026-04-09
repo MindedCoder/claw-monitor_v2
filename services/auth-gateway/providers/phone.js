@@ -110,20 +110,23 @@ export default {
   async getUser({ body, config, tenant }) {
     const { phone, code, password, loginType } = body || {};
     console.log(`[phone.getUser] tenant=${tenant} phone=${phone} loginType=${loginType} hasCode=${!!code} hasPassword=${!!password}`);
-    if (!phone) { console.log('[phone.getUser] FAIL no phone'); return null; }
+    if (!phone) { console.log('[phone.getUser] FAIL no phone'); return { _error: '请输入手机号' }; }
 
     const db = getDb();
 
     // password login
     if (loginType === 'password' || (!code && password)) {
-      if (!password) { console.log('[phone.getUser] FAIL no password'); return null; }
+      if (!password) { console.log('[phone.getUser] FAIL no password'); return { _error: '请输入密码' }; }
       const user = await db.collection('users').findOne({ phone, tenants: tenant });
       console.log(`[phone.getUser] db query {phone,tenants:${tenant}} → found=${!!user} hasPwd=${!!user?.password} hash=${user?.password?.slice(0,7) || 'n/a'}`);
-      if (!user || !user.password) {
-        // diagnose: check if user exists at all
+      if (!user) {
         const any = await db.collection('users').findOne({ phone });
         console.log(`[phone.getUser] FAIL user not in tenant; user exists at all=${!!any} their tenants=${JSON.stringify(any?.tenants)}`);
-        return null;
+        return { _error: any ? '您没有此空间的访问权限' : '用户不存在' };
+      }
+      if (!user.password) {
+        console.log('[phone.getUser] FAIL user has no password set');
+        return { _error: '该用户未设置密码，请使用短信验证码登录' };
       }
 
       // bcrypt hashes start with $2a$/$2b$/$2y$
@@ -131,12 +134,12 @@ export default {
       if (isHashed) {
         const ok = await bcrypt.compare(password, user.password);
         console.log(`[phone.getUser] bcrypt.compare → ${ok}`);
-        if (!ok) return null;
+        if (!ok) return { _error: '密码错误' };
       } else {
         // legacy plaintext — verify, then upgrade in place
         const ok = user.password === password;
         console.log(`[phone.getUser] plain compare → ${ok}`);
-        if (!ok) return null;
+        if (!ok) return { _error: '密码错误' };
         const hashed = await bcrypt.hash(password, 10);
         await db.collection('users').updateOne(
           { _id: user._id },
@@ -149,34 +152,30 @@ export default {
     }
 
     // sms code login
-    if (!code) return null;
+    if (!code) return { _error: '请输入验证码' };
 
     const doc = await db.collection('codes').findOne({ phone, tenant });
+    if (!doc) return { _error: '验证码不存在或已过期，请重新获取' };
 
-    if (!doc) return null;
+    if (doc.attempts >= 5) return { _error: '错误次数过多，请重新获取验证码' };
 
-    // too many attempts
-    if (doc.attempts >= 5) return null;
-
-    // wrong code — increment attempts
     if (doc.code !== code) {
       await db.collection('codes').updateOne(
         { _id: doc._id },
         { $inc: { attempts: 1 } },
       );
-      return null;
+      return { _error: '验证码错误' };
     }
 
-    // expired
-    if (new Date() > doc.expiresAt) return null;
+    if (new Date() > doc.expiresAt) return { _error: '验证码已过期，请重新获取' };
 
-    // success — delete used code
     await db.collection('codes').deleteOne({ _id: doc._id });
 
-    // get user info
     const user = await db.collection('users').findOne({ phone, tenants: tenant });
-    return user
-      ? { name: user.name, phone: user.phone, provider: 'phone' }
-      : null;
+    if (!user) {
+      const any = await db.collection('users').findOne({ phone });
+      return { _error: any ? '您没有此空间的访问权限' : '用户不存在' };
+    }
+    return { name: user.name, phone: user.phone, provider: 'phone' };
   },
 };
