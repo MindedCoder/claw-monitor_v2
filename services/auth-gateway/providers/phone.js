@@ -65,12 +65,16 @@ export default {
   async sendCode({ phone, tenant, smsConfig }) {
     const db = getDb();
 
-    // check user has access to this tenant
-    const user = await db.collection('users').findOne({
-      phone,
-      tenants: tenant,
-    });
-    if (!user) return { ok: false, status: 403, message: '您没有此空间的访问权限' };
+    // check user has access to this tenant (admins bypass tenant restriction)
+    let user = await db.collection('users').findOne({ phone, tenants: tenant });
+    if (!user) {
+      const admin = await db.collection('admins').findOne({ phone });
+      if (admin) {
+        user = await db.collection('users').findOne({ phone });
+        console.log(`[phone.sendCode] admin bypass tenant=${tenant} phone=${phone} userFound=${!!user}`);
+      }
+      if (!user) return { ok: false, status: 403, message: '您没有此空间的访问权限' };
+    }
 
     // rate limit: 60s per phone+tenant
     const recent = await db.collection('codes').findOne({
@@ -117,12 +121,20 @@ export default {
     // password login
     if (loginType === 'password' || (!code && password)) {
       if (!password) { console.log('[phone.getUser] FAIL no password'); return { _error: '请输入密码' }; }
-      const user = await db.collection('users').findOne({ phone, tenants: tenant });
+      let user = await db.collection('users').findOne({ phone, tenants: tenant });
       console.log(`[phone.getUser] db query {phone,tenants:${tenant}} → found=${!!user} hasPwd=${!!user?.password} hash=${user?.password?.slice(0,7) || 'n/a'}`);
       if (!user) {
-        const any = await db.collection('users').findOne({ phone });
-        console.log(`[phone.getUser] FAIL user not in tenant; user exists at all=${!!any} their tenants=${JSON.stringify(any?.tenants)}`);
-        return { _error: any ? '您没有此空间的访问权限' : '用户不存在' };
+        // admin bypass: admins can log in via any tenant
+        const admin = await db.collection('admins').findOne({ phone });
+        if (admin) {
+          user = await db.collection('users').findOne({ phone });
+          console.log(`[phone.getUser] admin bypass tenant=${tenant} userFound=${!!user}`);
+        }
+        if (!user) {
+          const any = await db.collection('users').findOne({ phone });
+          console.log(`[phone.getUser] FAIL user not in tenant; user exists at all=${!!any} their tenants=${JSON.stringify(any?.tenants)}`);
+          return { _error: any ? '您没有此空间的访问权限' : '用户不存在' };
+        }
       }
       if (!user.password) {
         console.log('[phone.getUser] FAIL user has no password set');
@@ -171,7 +183,14 @@ export default {
 
     await db.collection('codes').deleteOne({ _id: doc._id });
 
-    const user = await db.collection('users').findOne({ phone, tenants: tenant });
+    let user = await db.collection('users').findOne({ phone, tenants: tenant });
+    if (!user) {
+      const admin = await db.collection('admins').findOne({ phone });
+      if (admin) {
+        user = await db.collection('users').findOne({ phone });
+        console.log(`[phone.getUser] sms admin bypass tenant=${tenant} userFound=${!!user}`);
+      }
+    }
     if (!user) {
       const any = await db.collection('users').findOne({ phone });
       return { _error: any ? '您没有此空间的访问权限' : '用户不存在' };
