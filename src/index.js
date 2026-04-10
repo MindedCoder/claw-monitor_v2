@@ -9,6 +9,7 @@ import createCodexPanel from './panels/codex-usage.js';
 import createHealthPanel from './panels/health.js';
 import createLogsPanel from './panels/logs.js';
 import createSystemLogPanel from './panels/system-log.js';
+import createFeishuStatusPanel from './panels/feishu-status.js';
 import createDeployModule from './deploy/static-deploy.js';
 import { FrpcService } from '../services/frpc/manager.js';
 
@@ -24,10 +25,11 @@ async function main() {
   const health = createHealthPanel(config);
   const logs = createLogsPanel(config);
   const syslog = createSystemLogPanel();
+  const feishuStatus = createFeishuStatusPanel(config);
   const deploy = createDeployModule(config);
   const frpc = new FrpcService(config, dataDir, (level, msg) => syslog.push(level, msg));
 
-  const panels = [health, ping, codex, logs, syslog, deploy, frpc];
+  const panels = [health, feishuStatus, ping, codex, logs, syslog, deploy, frpc];
 
   // collect all routes
   const routes = new Map();
@@ -73,6 +75,7 @@ async function main() {
 
   // start polling panels
   health.startPolling();
+  feishuStatus.startPolling();
   codex.startPolling();
   logs.startPolling();
 
@@ -104,6 +107,7 @@ async function main() {
   const shutdown = () => {
     console.log('[claw-monitor-v2] shutting down...');
     health.stopPolling();
+    feishuStatus.stopPolling();
     codex.stopPolling();
     logs.stopPolling();
     frpc.stop();

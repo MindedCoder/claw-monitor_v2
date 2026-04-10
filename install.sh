@@ -8,6 +8,92 @@ PID_FILE="${INSTALL_DIR}/data/monitor.pid"
 PLIST_LABEL="com.claw-monitor-v2.monitor"
 PLIST_FILE="${HOME}/Library/LaunchAgents/${PLIST_LABEL}.plist"
 CONFIG_FILE="${INSTALL_DIR}/data/config.json"
+OPENCLAW_CONFIG_FILE="${HOME}/.openclaw/openclaw.json"
+
+configure_feishu_status() {
+  local mode="$1"
+  local default_enable="$2"
+  local enable_choice=""
+  local active_minutes=""
+  local refresh_ms=""
+
+  echo ""
+  if [ "$mode" = "new" ]; then
+    read -rp "是否启用飞书聊天状态监控? [y/N]: " enable_choice
+  else
+    read -rp "是否配置/更新飞书聊天状态监控? [y/N]: " enable_choice
+  fi
+
+  if [[ ! "$enable_choice" =~ ^[Yy]$ ]]; then
+    if [ "$mode" = "new" ] && [ "$default_enable" != "true" ]; then
+      export CONFIG_FILE FEISHU_ENABLE="false"
+      node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+if (cfg.feishuStatus) delete cfg.feishuStatus;
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+console.log('[INFO] Feishu status monitor disabled');
+NODE
+    else
+      echo "[INFO] Skipping feishuStatus config changes"
+    fi
+    return
+  fi
+
+  active_minutes="240"
+  refresh_ms="5000"
+
+  if [ -f "$CONFIG_FILE" ]; then
+    local existing_values
+    existing_values=$(CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+const f = cfg.feishuStatus || {};
+console.log([
+  f.enabled === false ? 'false' : 'true',
+  String(f.activeMinutes || 240),
+  String(f.refreshIntervalMs || 5000),
+].join('\n'));
+NODE
+)
+    if [ -n "$existing_values" ]; then
+      local old_ifs="$IFS"
+      local lines=()
+      IFS=$'\n' read -r -d '' -a lines < <(printf '%s\0' "$existing_values")
+      IFS="$old_ifs"
+      default_enable="${lines[0]:-true}"
+      active_minutes="${lines[1]:-240}"
+      refresh_ms="${lines[2]:-5000}"
+    fi
+  fi
+
+  echo "[INFO] 默认通过本机 openclaw 会话存储读取数据，无需填写 Gateway WS/Token"
+  echo "[INFO] 直接回车即可使用默认值"
+  read -rp "活跃窗口分钟数 [${active_minutes}]: " active_minutes_input
+  active_minutes="${active_minutes_input:-$active_minutes}"
+  read -rp "刷新间隔毫秒 [${refresh_ms}]: " refresh_ms_input
+  refresh_ms="${refresh_ms_input:-$refresh_ms}"
+
+  export CONFIG_FILE FEISHU_ACTIVE_MINUTES="$active_minutes" FEISHU_REFRESH_MS="$refresh_ms"
+  node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+cfg.feishuStatus = {
+  enabled: true,
+  activeMinutes: Number(process.env.FEISHU_ACTIVE_MINUTES || '240') || 240,
+  limit: 200,
+  refreshIntervalMs: Number(process.env.FEISHU_REFRESH_MS || '5000') || 5000,
+  staleMs: 180000,
+  idleMs: 1800000,
+  onlyFeishu: true,
+};
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+console.log('[OK] feishuStatus config written to', path);
+NODE
+}
 
 echo "=== Claw Monitor v2 Installer ==="
 echo ""
@@ -88,9 +174,11 @@ fi
 
 # 4. create data dir & config
 mkdir -p "${INSTALL_DIR}/data/static"
+IS_NEW_CONFIG="false"
 
 # ========== interactive config ==========
 if [ ! -f "$CONFIG_FILE" ]; then
+  IS_NEW_CONFIG="true"
   echo ""
   echo "--- 首次安装，请配置以下参数 ---"
   echo "(直接回车使用 [默认值])"
@@ -178,6 +266,8 @@ else
   echo "     To reconfigure, delete data/config.json and re-run install.sh"
 fi
 
+configure_feishu_status "$([ "$IS_NEW_CONFIG" = "true" ] && echo new || echo existing)" "false"
+
 # 4. download frpc
 echo "[INFO] Checking frpc..."
 if command -v frpc >/dev/null 2>&1 || [ -x "${HOME}/bin/frpc" ]; then
@@ -231,23 +321,10 @@ exec "${NODE_BIN}" src/index.js >> data/monitor.log 2>&1
 WRAPPER
 chmod +x "$STARTUP_SCRIPT"
 
-# 7. start monitor with keepalive
+# 7. start monitor
 echo "[INFO] Starting monitor..."
 cd "$INSTALL_DIR"
 
-nohup bash -c "
-while true; do
-  bash \"${STARTUP_SCRIPT}\"
-  echo \"[\$(date '+%Y-%m-%d %H:%M:%S')] [keepalive] monitor exited, restarting in 3s...\" >> data/monitor.log
-  sleep 3
-done
-" > /dev/null 2>&1 &
-
-KEEPALIVE_PID=$!
-echo "$KEEPALIVE_PID" > "$PID_FILE"
-echo "[OK] Monitor started (keepalive PID: $KEEPALIVE_PID)"
-
-# 8. setup macOS LaunchAgent for boot auto-start
 if [ "$(uname -s)" = "Darwin" ]; then
   echo "[INFO] Setting up macOS auto-start (LaunchAgent)..."
 
@@ -299,11 +376,17 @@ PLIST
 
   launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE" 2>/dev/null || true
   echo "[OK] LaunchAgent installed: auto-start on login enabled"
+  rm -f "$PID_FILE"
+else
+  nohup bash "$STARTUP_SCRIPT" > /dev/null 2>&1 &
+  MONITOR_PID=$!
+  echo "$MONITOR_PID" > "$PID_FILE"
+  echo "[OK] Monitor started (PID: $MONITOR_PID)"
 fi
 
 # 9. verify
 sleep 2
-if kill -0 "$KEEPALIVE_PID" 2>/dev/null; then
+if [ "$(uname -s)" = "Darwin" ] || { [ -f "$PID_FILE" ] && kill -0 "$(cat "$PID_FILE" 2>/dev/null || true)" 2>/dev/null; }; then
   PORT=$(grep -o '"port":[[:space:]]*[0-9]*' "$CONFIG_FILE" | head -1 | grep -o '[0-9]*')
   PORT=${PORT:-9001}
   echo ""
@@ -311,7 +394,11 @@ if kill -0 "$KEEPALIVE_PID" 2>/dev/null; then
   echo "  Dashboard:   http://127.0.0.1:${PORT}"
   echo "  Config:      ${CONFIG_FILE}"
   echo "  Logs:        ${INSTALL_DIR}/data/monitor.log"
-  echo "  Auto-start:  LaunchAgent (survives reboot)"
+  if [ "$(uname -s)" = "Darwin" ]; then
+    echo "  Auto-start:  LaunchAgent (single instance)"
+  else
+    echo "  Auto-start:  nohup startup.sh"
+  fi
   echo ""
   echo "  To reconfigure: rm ${CONFIG_FILE} && bash install.sh"
 else

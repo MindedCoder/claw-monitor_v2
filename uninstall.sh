@@ -55,6 +55,25 @@ if [ -d "${INSTALL_DIR}/data" ]; then
     rm -rf "${INSTALL_DIR}/data"
     echo "[OK] Data removed."
   else
+    CONFIG_FILE="${INSTALL_DIR}/data/config.json"
+    if [ -f "$CONFIG_FILE" ]; then
+      read -p "Remove feishuStatus config from preserved data? [y/N] " -n 1 -r
+      echo
+      if [[ $REPLY =~ ^[Yy]$ ]]; then
+        CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+if (cfg.feishuStatus) {
+  delete cfg.feishuStatus;
+  fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  console.log('[OK] feishuStatus config removed');
+} else {
+  console.log('[INFO] feishuStatus config not present');
+}
+NODE
+      fi
+    fi
     echo "[INFO] Keeping data directory."
   fi
 fi

@@ -1,6 +1,6 @@
 {
   "port": 9001,
-  "instanceName": "default",
+  "instanceName": "bfetest",
   "basePath": "",
 
   "health": {
@@ -38,18 +38,6 @@
     "staticDir": "./data/static"
   },
 
-  "feishuStatus": {
-    "enabled": true,
-    "gatewayUrl": "ws://localhost:18789",
-    "gatewayToken": "",
-    "activeMinutes": 240,
-    "limit": 200,
-    "refreshIntervalMs": 5000,
-    "staleMs": 180000,
-    "idleMs": 1800000,
-    "onlyFeishu": true
-  },
-
   "frpc": {
     "version": "0.61.1",
     "serverAddr": "8.135.54.217",
@@ -62,24 +50,14 @@
     },
     "proxies": [
       {
-        "name": "monitor-v2",
+        "name": "monitor-v2-bfetest",
         "type": "http",
         "localIP": "127.0.0.1",
         "localPort": 9001,
         "customDomains": ["claw.bfelab.com"],
-        "locations": ["/default"]
+        "locations": ["/bfetest"]
       }
     ]
-  },
-
-  "authGateway": {
-    "port": 4180,
-    "sessionTtlMs": 604800000,
-    "cookieName": "claw_session",
-    "authProvider": "password",
-    "provider": {
-      "password": "changeme"
-    },
-    "tenants": {}
   }
+
 }

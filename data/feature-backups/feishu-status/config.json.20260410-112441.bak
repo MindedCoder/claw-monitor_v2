@@ -1,6 +1,6 @@
 {
   "port": 9001,
-  "instanceName": "default",
+  "instanceName": "bfetest",
   "basePath": "",
 
   "health": {
@@ -40,7 +40,7 @@
 
   "feishuStatus": {
     "enabled": true,
-    "gatewayUrl": "ws://localhost:18789",
+    "gatewayUrl": "ws://127.0.0.1:18789",
     "gatewayToken": "",
     "activeMinutes": 240,
     "limit": 200,
@@ -62,24 +62,14 @@
     },
     "proxies": [
       {
-        "name": "monitor-v2",
+        "name": "monitor-v2-bfetest",
         "type": "http",
         "localIP": "127.0.0.1",
         "localPort": 9001,
         "customDomains": ["claw.bfelab.com"],
-        "locations": ["/default"]
+        "locations": ["/bfetest"]
       }
     ]
-  },
-
-  "authGateway": {
-    "port": 4180,
-    "sessionTtlMs": 604800000,
-    "cookieName": "claw_session",
-    "authProvider": "password",
-    "provider": {
-      "password": "changeme"
-    },
-    "tenants": {}
   }
+
 }

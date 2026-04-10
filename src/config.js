@@ -21,6 +21,57 @@ function loadJson(filePath) {
   return JSON.parse(readFileSync(filePath, 'utf-8'));
 }
 
+function loadOpenClawGatewayToken() {
+  const openClawConfigPath = resolve(homedir(), '.openclaw/openclaw.json');
+  if (!existsSync(openClawConfigPath)) return '';
+  try {
+    const cfg = loadJson(openClawConfigPath);
+    return cfg?.gateway?.auth?.token || '';
+  } catch {
+    return '';
+  }
+}
+
+function loadOpenClawControlUiToken() {
+  const pairedPath = resolve(homedir(), '.openclaw/devices/paired.json');
+  if (!existsSync(pairedPath)) return '';
+  try {
+    const paired = loadJson(pairedPath);
+    const matches = Object.values(paired || {}).filter(
+      (entry) => entry && entry.clientId === 'openclaw-control-ui' && entry.clientMode === 'webchat'
+    );
+    matches.sort((a, b) => {
+      const at = Number(a?.tokens?.operator?.lastUsedAtMs || a?.approvedAtMs || a?.createdAtMs || 0);
+      const bt = Number(b?.tokens?.operator?.lastUsedAtMs || b?.approvedAtMs || b?.createdAtMs || 0);
+      return bt - at;
+    });
+    return matches[0]?.tokens?.operator?.token || '';
+  } catch {
+    return '';
+  }
+}
+
+function loadPairedClientToken(clientId, clientMode = null) {
+  const pairedPath = resolve(homedir(), '.openclaw/devices/paired.json');
+  if (!existsSync(pairedPath)) return '';
+  try {
+    const paired = loadJson(pairedPath);
+    const matches = Object.values(paired || {}).filter((entry) => {
+      if (!entry || entry.clientId !== clientId) return false;
+      if (clientMode && entry.clientMode !== clientMode) return false;
+      return true;
+    });
+    matches.sort((a, b) => {
+      const at = Number(a?.tokens?.operator?.lastUsedAtMs || a?.approvedAtMs || a?.createdAtMs || 0);
+      const bt = Number(b?.tokens?.operator?.lastUsedAtMs || b?.approvedAtMs || b?.createdAtMs || 0);
+      return bt - at;
+    });
+    return matches[0]?.tokens?.operator?.token || '';
+  } catch {
+    return '';
+  }
+}
+
 export function loadConfig() {
   const userConf = resolve(ROOT, 'data/config.json');
   const defaultConf = resolve(ROOT, 'config.example.json');
@@ -36,6 +87,16 @@ export function loadConfig() {
   }
   if (cfg.deploy?.staticDir) {
     cfg.deploy.staticDir = resolveRelative(cfg.deploy.staticDir);
+  }
+  if (cfg.feishuStatus) {
+    cfg.feishuStatus.gatewayToken = cfg.feishuStatus.gatewayToken || loadOpenClawGatewayToken();
+    cfg.feishuStatus.gatewayClientToken =
+      cfg.feishuStatus.gatewayClientToken || loadPairedClientToken('gateway-client', 'ui');
+    cfg.feishuStatus.clientAuthToken =
+      cfg.feishuStatus.clientAuthToken ||
+      loadOpenClawControlUiToken() ||
+      cfg.feishuStatus.gatewayClientToken ||
+      cfg.feishuStatus.gatewayToken;
   }
 
   cfg._root = ROOT;

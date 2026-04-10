@@ -99,6 +99,14 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 .claw-detail-row { display:flex; gap:8px; font-size:12px; padding:2px 0; }
 .claw-detail-key { color:#8b949e; min-width:80px; }
 .claw-detail-val { color:#c9d1d9; }
+.feishu-subrow td { padding-top:0; }
+.feishu-name { font-weight:600; color:#c9d1d9; }
+.feishu-key { font-size:11px; color:#8b949e; margin-top:2px; word-break:break-all; }
+.feishu-line { font-size:12px; color:#8b949e; padding:2px 0; }
+.feishu-k { display:inline-block; min-width:64px; color:#8b949e; }
+.feishu-v { color:#c9d1d9; }
+.feishu-detail { color:#c9d1d9; }
+.feishu-hint { margin-top:8px; font-size:12px; color:#8b949e; line-height:1.5; }
 
 @media(max-width:480px) {
   .app { grid-template-columns:1fr; padding:8px; }

@@ -1,8 +1,7 @@
 {
   "port": 9001,
-  "instanceName": "default",
+  "instanceName": "bfetest",
   "basePath": "",
-
   "health": {
     "enabled": true,
     "url": "http://127.0.0.1:18789/health",
@@ -10,37 +9,44 @@
     "timeoutMs": 5000,
     "failThreshold": 3
   },
-
   "ping": {
     "enabled": true,
     "targets": [
-      { "name": "Google", "url": "https://www.google.com" },
-      { "name": "Baidu", "url": "https://www.baidu.com" }
+      {
+        "name": "Google",
+        "url": "https://www.google.com"
+      },
+      {
+        "name": "Baidu",
+        "url": "https://www.baidu.com"
+      }
     ],
     "timeoutMs": 10000
   },
-
   "codexUsage": {
     "enabled": true,
     "intervalMs": 300000,
     "authProfilesPath": "~/.openclaw/agents/main/agent/auth-profiles.json"
   },
-
   "logs": {
     "maxEntries": 500,
     "sources": [
-      { "name": "gateway", "path": "~/.openclaw/logs/gateway.log" },
-      { "name": "errors", "path": "~/.openclaw/logs/gateway.err.log" }
+      {
+        "name": "gateway",
+        "path": "~/.openclaw/logs/gateway.log"
+      },
+      {
+        "name": "errors",
+        "path": "~/.openclaw/logs/gateway.err.log"
+      }
     ]
   },
-
   "deploy": {
     "staticDir": "./data/static"
   },
-
   "feishuStatus": {
     "enabled": true,
-    "gatewayUrl": "ws://localhost:18789",
+    "gatewayUrl": "ws://127.0.0.1:18789",
     "gatewayToken": "",
     "activeMinutes": 240,
     "limit": 200,
@@ -49,7 +55,6 @@
     "idleMs": 1800000,
     "onlyFeishu": true
   },
-
   "frpc": {
     "version": "0.61.1",
     "serverAddr": "8.135.54.217",
@@ -62,24 +67,17 @@
     },
     "proxies": [
       {
-        "name": "monitor-v2",
+        "name": "monitor-v2-bfetest",
         "type": "http",
         "localIP": "127.0.0.1",
         "localPort": 9001,
-        "customDomains": ["claw.bfelab.com"],
-        "locations": ["/default"]
+        "customDomains": [
+          "claw.bfelab.com"
+        ],
+        "locations": [
+          "/bfetest"
+        ]
       }
     ]
-  },
-
-  "authGateway": {
-    "port": 4180,
-    "sessionTtlMs": 604800000,
-    "cookieName": "claw_session",
-    "authProvider": "password",
-    "provider": {
-      "password": "changeme"
-    },
-    "tenants": {}
   }
 }
