@@ -7,7 +7,6 @@ import { sendHtml, sendJson } from './lib/http-helpers.js';
 import createPingPanel from './panels/ping.js';
 import createCodexPanel from './panels/codex-usage.js';
 import createHealthPanel from './panels/health.js';
-import createOpenClawStatusPanel from './panels/openclaw-status.js';
 import createLogsPanel from './panels/logs.js';
 import createSystemLogPanel from './panels/system-log.js';
 import createDeployModule from './deploy/static-deploy.js';
@@ -23,13 +22,12 @@ async function main() {
   const ping = createPingPanel(config);
   const codex = createCodexPanel(config);
   const health = createHealthPanel(config);
-  const clawStatus = createOpenClawStatusPanel(config);
   const logs = createLogsPanel(config);
   const syslog = createSystemLogPanel();
   const deploy = createDeployModule(config);
   const frpc = new FrpcService(config, dataDir, (level, msg) => syslog.push(level, msg));
 
-  const panels = [clawStatus, health, ping, codex, logs, syslog, deploy, frpc];
+  const panels = [health, ping, codex, logs, syslog, deploy, frpc];
 
   // collect all routes
   const routes = new Map();
@@ -75,7 +73,6 @@ async function main() {
 
   // start polling panels
   health.startPolling();
-  clawStatus.startPolling();
   codex.startPolling();
   logs.startPolling();
 
@@ -107,7 +104,6 @@ async function main() {
   const shutdown = () => {
     console.log('[claw-monitor-v2] shutting down...');
     health.stopPolling();
-    clawStatus.stopPolling();
     codex.stopPolling();
     logs.stopPolling();
     frpc.stop();
