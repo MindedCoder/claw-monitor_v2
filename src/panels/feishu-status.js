@@ -460,7 +460,6 @@ export default function createFeishuStatusPanel(config) {
     const rowsHtml = state.rows
       .slice(0, 30)
       .map((row) => {
-        const detail = row.status.detail ? `<div class="feishu-line feishu-detail">${esc(row.status.detail)}</div>` : '';
         const contextBadge = row.contextPct == null ? '未知' : `${row.contextPct}%`;
         return `
           <tr>
@@ -472,9 +471,6 @@ export default function createFeishuStatusPanel(config) {
             <td>${esc(row.model)}</td>
             <td>${esc(relTime(row.updatedAt))}</td>
             <td>${esc(row.label)}</td>
-          </tr>
-          <tr class="feishu-subrow">
-            <td colspan="6">${detail}</td>
           </tr>`;
       })
       .join('');
