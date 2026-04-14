@@ -126,7 +126,23 @@ async function refreshCodex() {
     await fetch(BASE+'/api/codex-usage/refresh');
   } catch(e) { console.error(e); }
 }
+let logHover = false;
+document.addEventListener('mouseover', e => {
+  logHover = !!e.target.closest && !!e.target.closest('.log-table-wrap');
+});
+document.addEventListener('mouseout', e => {
+  if (e.target.closest && e.target.closest('.log-table-wrap')) logHover = false;
+});
+function hasLogSelection() {
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0) return false;
+  const node = sel.anchorNode;
+  if (!node) return false;
+  const el = node.nodeType === 1 ? node : node.parentElement;
+  return !!(el && el.closest && el.closest('.log-table-wrap'));
+}
 setInterval(async () => {
+  if (logHover || hasLogSelection()) return;
   try {
     const scrolls = {};
     document.querySelectorAll('.panel').forEach(p => {
