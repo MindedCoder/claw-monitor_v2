@@ -128,10 +128,19 @@ async function refreshCodex() {
 }
 setInterval(async () => {
   try {
+    const scrolls = {};
+    document.querySelectorAll('.panel').forEach(p => {
+      const wrap = p.querySelector('.log-table-wrap');
+      if (wrap) scrolls[p.className] = wrap.scrollTop;
+    });
     const r = await fetch(BASE+'/api/html'+SHOW_PARAM);
     if (r.ok) {
       const html = await r.text();
       document.querySelector('.app').innerHTML = html;
+      document.querySelectorAll('.panel').forEach(p => {
+        const wrap = p.querySelector('.log-table-wrap');
+        if (wrap && scrolls[p.className] != null) wrap.scrollTop = scrolls[p.className];
+      });
     }
   } catch {}
 }, 3000);

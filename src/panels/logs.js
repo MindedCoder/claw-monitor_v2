@@ -90,7 +90,7 @@ export default function createLogsPanel(config) {
   }
 
   function render() {
-    const recent = entries.toArray().slice(-30);
+    const recent = entries.toArray().slice(-30).reverse();
     const rows = recent.map(e => `
       <tr>
         <td class="log-time">${toBJTime(e.ts)}</td>
