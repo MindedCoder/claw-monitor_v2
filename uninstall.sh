@@ -57,10 +57,16 @@ if [ -d "${INSTALL_DIR}/data" ]; then
   else
     CONFIG_FILE="${INSTALL_DIR}/data/config.json"
     if [ -f "$CONFIG_FILE" ]; then
-      read -p "Remove feishuStatus config from preserved data? [y/N] " -n 1 -r
+      read -p "Reset base config (instanceName / displayName / port) so next install re-prompts? [y/N] " -n 1 -r
       echo
       if [[ $REPLY =~ ^[Yy]$ ]]; then
-        CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
+        rm -f "$CONFIG_FILE"
+        echo "[OK] Base config removed (config.json deleted)."
+      else
+        read -p "Remove feishuStatus config from preserved data? [y/N] " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+          CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
 const fs = require('fs');
 const path = process.env.CONFIG_FILE;
 const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
@@ -72,6 +78,7 @@ if (cfg.feishuStatus) {
   console.log('[INFO] feishuStatus config not present');
 }
 NODE
+        fi
       fi
     fi
     echo "[INFO] Keeping data directory."
