@@ -14,35 +14,9 @@ configure_feishu_status() {
   local mode="$1"
   local default_enable="$2"
   local enable_choice=""
-  local active_minutes=""
-  local refresh_ms=""
-
-  echo ""
-  if [ "$mode" = "new" ]; then
-    read -rp "是否启用飞书聊天状态监控? [y/N]: " enable_choice
-  else
-    read -rp "是否配置/更新飞书聊天状态监控? [y/N]: " enable_choice
-  fi
-
-  if [[ ! "$enable_choice" =~ ^[Yy]$ ]]; then
-    if [ "$mode" = "new" ] && [ "$default_enable" != "true" ]; then
-      export CONFIG_FILE FEISHU_ENABLE="false"
-      node <<'NODE'
-const fs = require('fs');
-const path = process.env.CONFIG_FILE;
-const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
-if (cfg.feishuStatus) delete cfg.feishuStatus;
-fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
-console.log('[INFO] Feishu status monitor disabled');
-NODE
-    else
-      echo "[INFO] Skipping feishuStatus config changes"
-    fi
-    return
-  fi
-
-  active_minutes="240"
-  refresh_ms="5000"
+  local active_minutes="240"
+  local refresh_ms="5000"
+  local currently_enabled="false"
 
   if [ -f "$CONFIG_FILE" ]; then
     local existing_values
@@ -51,8 +25,9 @@ const fs = require('fs');
 const path = process.env.CONFIG_FILE;
 const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
 const f = cfg.feishuStatus || {};
+const enabled = cfg.feishuStatus && f.enabled !== false ? 'true' : 'false';
 console.log([
-  f.enabled === false ? 'false' : 'true',
+  enabled,
   String(f.activeMinutes || 240),
   String(f.refreshIntervalMs || 5000),
 ].join('\n'));
@@ -63,10 +38,35 @@ NODE
       local lines=()
       IFS=$'\n' read -r -d '' -a lines < <(printf '%s\0' "$existing_values")
       IFS="$old_ifs"
-      default_enable="${lines[0]:-true}"
+      currently_enabled="${lines[0]:-false}"
       active_minutes="${lines[1]:-240}"
       refresh_ms="${lines[2]:-5000}"
     fi
+  fi
+
+  echo ""
+  if [ "$mode" = "existing" ] && [ "$currently_enabled" = "true" ]; then
+    read -rp "飞书聊天状态监控当前已启用，是否保持启用? [Y/n]: " enable_choice
+    [ -z "$enable_choice" ] && enable_choice="y"
+  else
+    read -rp "是否启用飞书聊天状态监控? [y/N]: " enable_choice
+  fi
+
+  if [[ ! "$enable_choice" =~ ^[Yy]$ ]]; then
+    export CONFIG_FILE
+    node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+if (cfg.feishuStatus) {
+  delete cfg.feishuStatus;
+  fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+  console.log('[INFO] Feishu status monitor disabled');
+} else {
+  console.log('[INFO] Feishu status monitor remains disabled');
+}
+NODE
+    return
   fi
 
   echo "[INFO] 默认通过本机 openclaw 会话存储读取数据，无需填写 Gateway WS/Token"

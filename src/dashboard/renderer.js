@@ -1,6 +1,6 @@
 import { pageShell } from './layout.js';
 
-const HIDDEN_PANELS = new Set(['deploy', 'system-log']);
+const HIDDEN_PANELS = new Set(['deploy', 'system-log', 'frpc', 'logs']);
 
 export function renderFull(config, panels, showAll = false) {
   const inner = renderInner(panels, showAll);
