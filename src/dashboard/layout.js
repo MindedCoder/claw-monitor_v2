@@ -6,13 +6,13 @@ export function pageShell(instanceName, bodyHtml, showAll = false) {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${instanceName} - Claw Monitor v2</title>
+  <title>${instanceName} - Claw Console</title>
   <style>${CSS}</style>
 </head>
 <body>
   <header class="topbar">
     <h1>${instanceName}</h1>
-    <span class="version">Claw Monitor v2</span>
+    <span class="version">Claw Console</span>
   </header>
   <main class="app">${bodyHtml}</main>
   <script>const BASE='${basePath}';const SHOW_PARAM='${showParam}';${JS}</script>
