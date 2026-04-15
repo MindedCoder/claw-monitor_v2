@@ -29,7 +29,7 @@ async function main() {
   const deploy = createDeployModule(config);
   const frpc = new FrpcService(config, dataDir, (level, msg) => syslog.push(level, msg));
 
-  const panels = [health, feishuStatus, ping, codex, logs, syslog, deploy, frpc];
+  const panels = [health, feishuStatus, codex, ping, logs, syslog, deploy, frpc];
 
   // collect all routes
   const routes = new Map();
