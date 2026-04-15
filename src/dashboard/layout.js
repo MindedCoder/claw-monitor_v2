@@ -100,7 +100,8 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 .claw-detail-key { color:#8b949e; min-width:80px; }
 .claw-detail-val { color:#c9d1d9; }
 .feishu-subrow td { padding-top:0; }
-.feishu-name { font-weight:600; color:#c9d1d9; }
+.feishu-name-cell { max-width:160px; }
+.feishu-name { font-weight:600; color:#c9d1d9; max-width:160px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .feishu-key { font-size:11px; color:#8b949e; margin-top:2px; word-break:break-all; }
 .feishu-line { font-size:12px; color:#8b949e; padding:2px 0; }
 .feishu-k { display:inline-block; min-width:64px; color:#8b949e; }

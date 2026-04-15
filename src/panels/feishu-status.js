@@ -463,8 +463,8 @@ export default function createFeishuStatusPanel(config) {
         const contextBadge = row.contextPct == null ? '未知' : `${row.contextPct}%`;
         return `
           <tr>
-            <td>
-              <div class="feishu-name">${esc(row.customerName)}</div>
+            <td class="feishu-name-cell">
+              <div class="feishu-name" title="${esc(row.customerName)}">${esc(row.customerName)}</div>
             </td>
             <td><span class="status-badge ${row.status.code}">${esc(row.status.text)}</span></td>
             <td><span class="status-badge ${contextClass(row.contextPct)}">${esc(contextBadge)}</span></td>
