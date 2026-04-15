@@ -28,7 +28,7 @@ if [ -f "$PID_FILE" ]; then
 fi
 
 # kill any remaining node processes for this project
-pgrep -f "node.*${PROJECT_NAME}" | while read pid; do
+for pid in $(pgrep -f "node.*${PROJECT_NAME}" 2>/dev/null || true); do
   echo "[INFO] Killing process $pid..."
   kill "$pid" 2>/dev/null || true
 done
