@@ -9,7 +9,7 @@ import { esc } from '../lib/html.js';
 const execFileAsync = promisify(execFile);
 
 const DEFAULTS = {
-  enabled: true,
+  enabled: false,
   gatewayUrl: 'ws://localhost:18789',
   gatewayToken: '',
   clientAuthToken: '',

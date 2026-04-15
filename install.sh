@@ -58,13 +58,9 @@ NODE
 const fs = require('fs');
 const path = process.env.CONFIG_FILE;
 const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
-if (cfg.feishuStatus) {
-  delete cfg.feishuStatus;
-  fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
-  console.log('[INFO] Feishu status monitor disabled');
-} else {
-  console.log('[INFO] Feishu status monitor remains disabled');
-}
+cfg.feishuStatus = { enabled: false };
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+console.log('[INFO] Feishu status monitor disabled');
 NODE
     return
   fi
