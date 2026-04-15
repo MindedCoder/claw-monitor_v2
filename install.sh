@@ -184,6 +184,10 @@ if [ ! -f "$CONFIG_FILE" ]; then
   read -p "实例名称 [default]: " INPUT_INSTANCE
   INPUT_INSTANCE="${INPUT_INSTANCE:-default}"
 
+  # display name (shown in top-left)
+  read -p "中文显示名 [${INPUT_INSTANCE}]: " INPUT_DISPLAY
+  INPUT_DISPLAY="${INPUT_DISPLAY:-$INPUT_INSTANCE}"
+
   # monitor port
   read -p "监控面板端口 [9001]: " INPUT_PORT
   INPUT_PORT="${INPUT_PORT:-9001}"
@@ -193,6 +197,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
 {
   "port": ${INPUT_PORT},
   "instanceName": "${INPUT_INSTANCE}",
+  "displayName": "${INPUT_DISPLAY}",
   "basePath": "",
 
   "health": {

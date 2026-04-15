@@ -1,17 +1,18 @@
-export function pageShell(instanceName, bodyHtml, showAll = false) {
+export function pageShell(instanceName, bodyHtml, showAll = false, displayName) {
   const basePath = instanceName ? '/' + instanceName : '';
   const showParam = showAll ? '?show=all' : '';
+  const title = displayName || instanceName;
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${instanceName} - Claw Console</title>
+  <title>${title} - Claw Console</title>
   <style>${CSS}</style>
 </head>
 <body>
   <header class="topbar">
-    <h1>${instanceName}</h1>
+    <h1>${title}</h1>
     <span class="version">Claw Console</span>
   </header>
   <main class="app">${bodyHtml}</main>
