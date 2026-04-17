@@ -8,3 +8,10 @@ data/*.sh
 !data/.gitkeep
 node_modules/
 k8s/*-secret.yaml
+
+# macOS
+.DS_Store
+**/.DS_Store
+
+# Claude Code local settings
+.claude/settings.local.json
