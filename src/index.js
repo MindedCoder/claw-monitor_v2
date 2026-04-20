@@ -10,6 +10,7 @@ import createHealthPanel from './panels/health.js';
 import createLogsPanel from './panels/logs.js';
 import createSystemLogPanel from './panels/system-log.js';
 import createFeishuStatusPanel from './panels/feishu-status.js';
+import createApplicationsPanel from './panels/applications.js';
 import createDeployModule from './deploy/static-deploy.js';
 import { FrpcService } from '../services/frpc/manager.js';
 
@@ -26,10 +27,11 @@ async function main() {
   const logs = createLogsPanel(config);
   const syslog = createSystemLogPanel();
   const feishuStatus = createFeishuStatusPanel(config);
+  const applications = createApplicationsPanel(config);
   const deploy = createDeployModule(config);
   const frpc = new FrpcService(config, dataDir, (level, msg) => syslog.push(level, msg));
 
-  const panels = [health, feishuStatus, codex, ping, logs, syslog, deploy, frpc];
+  const panels = [health, feishuStatus, codex, ping, logs, syslog, deploy, frpc, applications];
 
   // collect all routes
   const routes = new Map();
