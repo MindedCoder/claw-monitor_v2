@@ -1,7 +1,8 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { sendJson, readBody } from '../lib/http-helpers.js';
+import { APPLICATIONS_STORE_DIR, loadApplications, saveApplications } from '../lib/applications-store.js';
 
 const ICON_COLORS = [
   '#3370ff', '#5b8def', '#7c5cff', '#a657ff', '#d65cff',
@@ -10,28 +11,20 @@ const ICON_COLORS = [
 ];
 
 export default function createApplicationsPanel(config) {
-  const storeDir = resolve(config._root, 'services', 'applications');
-  const storePath = resolve(storeDir, 'applications.json');
+  const storeDir = APPLICATIONS_STORE_DIR;
 
   function ensureStore() {
     if (!existsSync(storeDir)) mkdirSync(storeDir, { recursive: true });
-    if (!existsSync(storePath)) writeFileSync(storePath, '[]', 'utf8');
   }
 
   function loadAll() {
     ensureStore();
-    try {
-      const raw = readFileSync(storePath, 'utf8');
-      const parsed = JSON.parse(raw);
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
+    return loadApplications();
   }
 
   function saveAll(list) {
     ensureStore();
-    writeFileSync(storePath, JSON.stringify(list, null, 2), 'utf8');
+    saveApplications(list);
   }
 
   function escapeHtml(text) {
@@ -49,6 +42,8 @@ export default function createApplicationsPanel(config) {
     mkdirSync(appDir, { recursive: true });
     const indexPath = resolve(appDir, 'index.html');
     writeFileSync(indexPath, renderPlaceholderIndex(app), 'utf8');
+    const dataPath = resolve(appDir, 'data.json');
+    writeFileSync(dataPath, '{}', 'utf8');
   }
 
   function renderPlaceholderIndex(app) {

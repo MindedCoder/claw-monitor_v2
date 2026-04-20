@@ -15,6 +15,3 @@ k8s/*-secret.yaml
 
 # Claude Code local settings
 .claude/settings.local.json
-
-# applications runtime data
-services/applications/applications.json
