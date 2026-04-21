@@ -1,7 +1,7 @@
 import http from 'node:http';
 import { createRequire } from 'node:module';
 import { parseUrl, sendJson, sendHtml, send404, sendText } from './lib/http-helpers.js';
-import { readFileSync, writeFileSync, existsSync, statSync } from 'node:fs';
+import { readFileSync, existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
 import {
@@ -11,7 +11,6 @@ import {
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const APP_DATA_MAX_BYTES = 256 * 1024;
 
 let filedeckApp;
 try {
@@ -61,59 +60,6 @@ export function createServer(config, routes, onLog) {
       const forwardedPath = path.slice('/filedeck'.length) || '/';
       req.url = `${forwardedPath}${url.search || ''}`;
       return filedeckApp(req, res);
-    }
-
-    // PUT /applications/<id>/data.json → overwrite per-app data store
-    if (req.method === 'PUT' && path.startsWith('/applications/') && !path.startsWith('/api/')) {
-      const rel = path.slice('/applications/'.length);
-      const m = /^([A-Za-z0-9_-]+)\/data\.json$/.exec(rel);
-      if (!m) return send404(res);
-      const appId = m[1];
-      const appDir = join(APPLICATIONS_STORE_DIR, appId);
-      if (!existsSync(appDir) || !statSync(appDir).isDirectory()) return send404(res);
-
-      const declared = Number(req.headers['content-length'] || 0);
-      if (declared && declared > APP_DATA_MAX_BYTES) {
-        return sendJson(res, { error: `data.json exceeds ${APP_DATA_MAX_BYTES} bytes` }, 413);
-      }
-
-      const chunks = [];
-      let received = 0;
-      let aborted = false;
-      req.on('data', (chunk) => {
-        if (aborted) return;
-        received += chunk.length;
-        if (received > APP_DATA_MAX_BYTES) {
-          aborted = true;
-          sendJson(res, { error: `data.json exceeds ${APP_DATA_MAX_BYTES} bytes` }, 413);
-          req.destroy();
-          return;
-        }
-        chunks.push(chunk);
-      });
-      req.on('end', () => {
-        if (aborted) return;
-        const raw = Buffer.concat(chunks).toString('utf8');
-        let parsed;
-        try {
-          parsed = JSON.parse(raw);
-        } catch {
-          return sendJson(res, { error: 'body must be valid JSON' }, 400);
-        }
-        if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
-          return sendJson(res, { error: 'body must be a JSON object' }, 400);
-        }
-        try {
-          writeFileSync(join(appDir, 'data.json'), JSON.stringify(parsed), 'utf8');
-        } catch (err) {
-          return sendJson(res, { error: `write failed: ${err.message}` }, 500);
-        }
-        sendJson(res, { ok: true });
-      });
-      req.on('error', () => {
-        if (!aborted) sendJson(res, { error: 'request error' }, 400);
-      });
-      return;
     }
 
     // /applications routes:

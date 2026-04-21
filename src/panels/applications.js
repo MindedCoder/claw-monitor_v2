@@ -1,8 +1,10 @@
-import { writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
 import { sendJson, readBody } from '../lib/http-helpers.js';
 import { APPLICATIONS_STORE_DIR, loadApplications, saveApplications } from '../lib/applications-store.js';
+
+const APP_DATA_MAX_BYTES = 256 * 1024;
 
 const ICON_COLORS = [
   '#3370ff', '#5b8def', '#7c5cff', '#a657ff', '#d65cff',
@@ -42,8 +44,22 @@ export default function createApplicationsPanel(config) {
     mkdirSync(appDir, { recursive: true });
     const indexPath = resolve(appDir, 'index.html');
     writeFileSync(indexPath, renderPlaceholderIndex(app), 'utf8');
-    const dataPath = resolve(appDir, 'data.json');
-    writeFileSync(dataPath, '{}', 'utf8');
+  }
+
+  function appDataPath(id) {
+    if (typeof id !== 'string' || !/^[A-Za-z0-9_-]+$/.test(id)) return null;
+    return resolve(storeDir, id, 'data.json');
+  }
+
+  function readAppData(id) {
+    const dataPath = appDataPath(id);
+    if (!dataPath || !existsSync(dataPath)) return {};
+    try {
+      const parsed = JSON.parse(readFileSync(dataPath, 'utf8'));
+      return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+    } catch {
+      return {};
+    }
   }
 
   function renderPlaceholderIndex(app) {
@@ -212,6 +228,66 @@ export default function createApplicationsPanel(config) {
         list[index] = next;
         saveAll(list);
         sendJson(res, publicView(next));
+      },
+
+      'GET /api/applications/data': (req, res, url) => {
+        const id = url.searchParams.get('id');
+        if (!id) return sendJson(res, { error: 'id required' }, 400);
+        const list = loadAll();
+        if (!list.find((a) => a.id === id)) return sendJson(res, { error: 'not found' }, 404);
+        sendJson(res, readAppData(id));
+      },
+
+      'PUT /api/applications/data': async (req, res, url) => {
+        const id = url.searchParams.get('id');
+        if (!id) return sendJson(res, { error: 'id required' }, 400);
+
+        const list = loadAll();
+        if (!list.find((a) => a.id === id)) return sendJson(res, { error: 'not found' }, 404);
+
+        const declared = Number(req.headers['content-length'] || 0);
+        if (declared && declared > APP_DATA_MAX_BYTES) {
+          return sendJson(res, { error: `data exceeds ${APP_DATA_MAX_BYTES} bytes` }, 413);
+        }
+
+        const chunks = [];
+        let received = 0;
+        let aborted = false;
+        req.on('data', (chunk) => {
+          if (aborted) return;
+          received += chunk.length;
+          if (received > APP_DATA_MAX_BYTES) {
+            aborted = true;
+            sendJson(res, { error: `data exceeds ${APP_DATA_MAX_BYTES} bytes` }, 413);
+            req.destroy();
+            return;
+          }
+          chunks.push(chunk);
+        });
+        req.on('end', () => {
+          if (aborted) return;
+          const raw = Buffer.concat(chunks).toString('utf8');
+          let parsed;
+          try {
+            parsed = JSON.parse(raw);
+          } catch {
+            return sendJson(res, { error: 'body must be valid JSON' }, 400);
+          }
+          if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return sendJson(res, { error: 'body must be a JSON object' }, 400);
+          }
+          const appDir = resolve(storeDir, id);
+          if (!existsSync(appDir)) mkdirSync(appDir, { recursive: true });
+          try {
+            writeFileSync(resolve(appDir, 'data.json'), JSON.stringify(parsed), 'utf8');
+          } catch (err) {
+            return sendJson(res, { error: `write failed: ${err.message}` }, 500);
+          }
+          sendJson(res, { ok: true });
+        });
+        req.on('error', () => {
+          if (!aborted) sendJson(res, { error: 'request error' }, 400);
+        });
       },
     };
   }
