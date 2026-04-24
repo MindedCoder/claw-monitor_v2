@@ -3,20 +3,13 @@
 
   const appGrid = document.getElementById('appGrid');
   const createBtn = document.getElementById('createAppBtn');
+  const appCount = document.getElementById('appCount');
   const modal = document.getElementById('createModal');
   const fieldName = document.getElementById('fieldName');
   const fieldDescription = document.getElementById('fieldDescription');
-  const fieldIcon = document.getElementById('fieldIcon');
-  const iconPickBtn = document.getElementById('iconPickBtn');
-  const iconClearBtn = document.getElementById('iconClearBtn');
-  const iconPreview = document.getElementById('iconPreview');
-  const previewText = document.getElementById('previewText');
   const submitBtn = document.getElementById('submitBtn');
   const modalMessage = document.getElementById('modalMessage');
   const toast = document.getElementById('toast');
-
-  let currentIconDataUrl = null;
-  let previewEdited = false;
 
   function firstChar(name) {
     const trimmed = (name || '').trim();
@@ -28,6 +21,11 @@
     link.className = 'app-item';
     link.href = `./${app.id}/`;
 
+    const idTag = document.createElement('span');
+    idTag.className = 'app-item__id';
+    idTag.textContent = `ID://${String(app.id).slice(0, 6).toUpperCase()}`;
+    link.appendChild(idTag);
+
     const icon = document.createElement('span');
     icon.className = 'app-icon';
     if (app.icon) {
@@ -36,16 +34,29 @@
       img.alt = '';
       icon.appendChild(img);
     } else {
-      icon.style.backgroundColor = app.iconColor || '#3370ff';
+      icon.style.backgroundColor = app.iconColor || '#00f0ff';
       icon.textContent = firstChar(app.name);
     }
+    link.appendChild(icon);
 
     const label = document.createElement('span');
     label.className = 'app-label';
     label.textContent = app.name;
-
-    link.appendChild(icon);
     link.appendChild(label);
+
+    if (app.description) {
+      const desc = document.createElement('span');
+      desc.className = 'app-desc';
+      desc.textContent = app.description;
+      link.appendChild(desc);
+    }
+
+    const arrow = document.createElement('span');
+    arrow.className = 'app-item__arrow';
+    arrow.setAttribute('aria-hidden', 'true');
+    arrow.textContent = '→';
+    link.appendChild(arrow);
+
     return link;
   }
 
@@ -61,60 +72,20 @@
       apps.forEach((app) => {
         appGrid.insertBefore(renderAppItem(app), createBtn);
       });
+
+      if (appCount) appCount.textContent = String(apps.length).padStart(2, '0');
     } catch (err) {
       console.error('加载应用列表失败', err);
     }
   }
 
   function buildPromptText(name, description) {
-    const trimmedName = (name || '').trim();
-    const trimmedDesc = (description || '').trim();
     return [
       '你好小龙虾，我想创建一个应用。',
-      `名称：「${trimmedName || '?'}」`,
-      `功能：${trimmedDesc || '?'}`,
+      `名称：「${name}」`,
+      `功能：${description}`,
       '请帮我创建。',
     ].join('\n');
-  }
-
-  function refreshPreviewFromForm() {
-    if (previewEdited) return;
-    previewText.value = buildPromptText(fieldName.value, fieldDescription.value);
-  }
-
-  function updateIconPreview() {
-    iconPreview.innerHTML = '';
-    if (currentIconDataUrl) {
-      const img = document.createElement('img');
-      img.src = currentIconDataUrl;
-      img.alt = '';
-      iconPreview.appendChild(img);
-      iconPreview.style.backgroundColor = '';
-      iconClearBtn.hidden = false;
-    } else {
-      const ch = firstChar(fieldName.value);
-      const span = document.createElement('span');
-      span.className = 'icon-placeholder';
-      span.textContent = ch || '?';
-      if (ch) {
-        span.style.color = '#fff';
-        iconPreview.style.backgroundColor = '#9499a0';
-      } else {
-        span.style.color = '#8f959e';
-        iconPreview.style.backgroundColor = '#f3f4f6';
-      }
-      iconPreview.appendChild(span);
-      iconClearBtn.hidden = true;
-    }
-  }
-
-  function fileToDataUrl(file) {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(reader.result);
-      reader.onerror = () => reject(reader.error);
-      reader.readAsDataURL(file);
-    });
   }
 
   function showToast(text) {
@@ -124,22 +95,16 @@
     showToast._timer = setTimeout(() => { toast.hidden = true; }, 2000);
   }
 
-  function setMessage(text, kind) {
+  function setMessage(text) {
     modalMessage.textContent = text || '';
-    modalMessage.style.color = kind === 'success' ? '#16a34a' : '#ef4444';
   }
 
   function openModal() {
     modal.hidden = false;
     fieldName.value = '';
     fieldDescription.value = '';
-    currentIconDataUrl = null;
-    previewEdited = false;
-    fieldIcon.value = '';
     setMessage('');
     submitBtn.disabled = false;
-    updateIconPreview();
-    refreshPreviewFromForm();
     setTimeout(() => fieldName.focus(), 30);
   }
 
@@ -176,15 +141,13 @@
     if (!name) return setMessage('请输入应用名称');
     if (!description) return setMessage('请输入功能描述');
 
-    const text = previewText.value.trim();
-    if (!text) return setMessage('文案为空，无法复制');
-
+    const text = buildPromptText(name, description);
     const copied = await copyText(text);
     if (copied) {
       closeModal();
       showToast('已复制，请到飞书粘贴给小龙虾');
     } else {
-      setMessage('复制失败，请手动全选文案复制');
+      setMessage('复制失败，请手动重试');
     }
   }
 
@@ -199,42 +162,6 @@
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape' && !modal.hidden) {
       closeModal();
-    }
-  });
-
-  fieldName.addEventListener('input', () => {
-    updateIconPreview();
-    refreshPreviewFromForm();
-  });
-
-  fieldDescription.addEventListener('input', refreshPreviewFromForm);
-
-  previewText.addEventListener('input', () => {
-    previewEdited = true;
-  });
-
-  iconPickBtn.addEventListener('click', () => fieldIcon.click());
-
-  iconClearBtn.addEventListener('click', () => {
-    currentIconDataUrl = null;
-    fieldIcon.value = '';
-    updateIconPreview();
-  });
-
-  fieldIcon.addEventListener('change', async (e) => {
-    const file = e.target.files && e.target.files[0];
-    if (!file) return;
-    if (file.size > 500 * 1024) {
-      setMessage('图标文件需 ≤ 500KB');
-      fieldIcon.value = '';
-      return;
-    }
-    setMessage('');
-    try {
-      currentIconDataUrl = await fileToDataUrl(file);
-      updateIconPreview();
-    } catch (err) {
-      setMessage('读取图标失败');
     }
   });
 

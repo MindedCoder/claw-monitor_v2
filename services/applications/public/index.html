@@ -3,15 +3,92 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>应用</title>
-  <link rel="stylesheet" href="styles.css?v=2" />
+  <title>应用中心 · Claw Station</title>
+  <link rel="stylesheet" href="styles.css?v=4" />
 </head>
 <body>
+  <div class="bg-grid" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow--cyan" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow--magenta" aria-hidden="true"></div>
+  <div class="bg-glow bg-glow--purple" aria-hidden="true"></div>
+
   <main class="page">
+    <header class="hero">
+      <div class="hero__mascot" aria-hidden="true">
+        <svg class="lobster" viewBox="0 0 200 220" xmlns="http://www.w3.org/2000/svg" stroke-linecap="round" stroke-linejoin="round">
+          <g fill="currentColor" stroke="currentColor">
+            <!-- Antennae -->
+            <path d="M 88 52 Q 66 28, 34 14" stroke-width="1.8" fill="none"/>
+            <path d="M 112 52 Q 134 28, 166 14" stroke-width="1.8" fill="none"/>
+
+            <!-- Left claw arm -->
+            <path d="M 40 82 L 58 70 L 80 72" stroke-width="3" fill="none"/>
+            <!-- Left pincer body -->
+            <path d="M 20 72 Q 4 82, 10 100 Q 20 110, 35 102 Q 44 95, 40 82 Q 32 74, 20 72 Z"
+                  fill-opacity="0.22" stroke-width="1.8"/>
+            <!-- Left claw mouth line -->
+            <path d="M 14 88 L 28 94" stroke-width="1.6" fill="none"/>
+
+            <!-- Right claw arm -->
+            <path d="M 160 82 L 142 70 L 120 72" stroke-width="3" fill="none"/>
+            <!-- Right pincer body -->
+            <path d="M 180 72 Q 196 82, 190 100 Q 180 110, 165 102 Q 156 95, 160 82 Q 168 74, 180 72 Z"
+                  fill-opacity="0.22" stroke-width="1.8"/>
+            <!-- Right claw mouth line -->
+            <path d="M 186 88 L 172 94" stroke-width="1.6" fill="none"/>
+
+            <!-- Carapace / head -->
+            <path d="M 80 50 Q 100 42, 120 50 L 128 90 Q 100 102, 72 90 Z"
+                  fill-opacity="0.26" stroke-width="2"/>
+
+            <!-- Eyes (glowing) -->
+            <circle cx="91" cy="66" r="3"/>
+            <circle cx="109" cy="66" r="3"/>
+
+            <!-- Walking legs -->
+            <path d="M 78 100 L 58 112" stroke-width="1.6" fill="none" opacity="0.65"/>
+            <path d="M 122 100 L 142 112" stroke-width="1.6" fill="none" opacity="0.65"/>
+            <path d="M 80 124 L 60 134" stroke-width="1.6" fill="none" opacity="0.65"/>
+            <path d="M 120 124 L 140 134" stroke-width="1.6" fill="none" opacity="0.65"/>
+
+            <!-- Body segments -->
+            <path d="M 78 92 Q 100 100, 122 92 L 120 116 Q 100 124, 80 116 Z"
+                  fill-opacity="0.2" stroke-width="2"/>
+            <path d="M 82 118 Q 100 126, 118 118 L 116 142 Q 100 150, 84 142 Z"
+                  fill-opacity="0.16" stroke-width="2"/>
+            <path d="M 86 144 Q 100 151, 114 144 L 112 166 Q 100 174, 88 166 Z"
+                  fill-opacity="0.13" stroke-width="2"/>
+
+            <!-- Tail fan -->
+            <path d="M 88 168 L 74 204 L 92 196 L 100 212 L 108 196 L 126 204 L 112 168 Z"
+                  fill-opacity="0.18" stroke-width="2"/>
+          </g>
+        </svg>
+      </div>
+
+      <div class="hero__content">
+        <div class="hero__tag">
+          <span class="hero__tag-dot"></span>
+          SYS://OPENCLAW_OS
+          <span class="hero__tag-version">v2.0</span>
+        </div>
+        <h1 class="hero__title" data-text="应用中心">应用中心</h1>
+        <p class="hero__subtitle">CLAW STATION · 小龙虾驱动的 <span>Neon Workspace</span></p>
+      </div>
+    </header>
+
+    <div class="section-header">
+      <span class="section-header__bracket">[</span>
+      <span>ALL APPLICATIONS</span>
+      <span class="section-header__bracket">]</span>
+      <span class="section-header__count" id="appCount">0</span>
+      <div class="section-header__line"></div>
+    </div>
+
     <div class="app-grid" id="appGrid">
       <button type="button" class="app-item app-item--create" id="createAppBtn">
         <span class="app-icon app-icon--create" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="28" height="28">
+          <svg viewBox="0 0 24 24" width="28" height="28" fill="none">
             <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
           </svg>
         </span>
@@ -29,38 +106,17 @@
       </div>
 
       <div class="modal__body">
-        <div class="form-col">
-          <label class="form-field">
-            <span class="form-label">应用名称<span class="form-required">*</span></span>
-            <input type="text" id="fieldName" maxlength="40" placeholder="例如：销售 CRM" autocomplete="off" />
-          </label>
+        <label class="form-field">
+          <span class="form-label">应用名称<span class="form-required">*</span></span>
+          <input type="text" id="fieldName" maxlength="40" placeholder="例如：销售 CRM" autocomplete="off" />
+        </label>
 
-          <label class="form-field">
-            <span class="form-label">功能描述<span class="form-required">*</span></span>
-            <textarea id="fieldDescription" rows="6" maxlength="2000" placeholder="简要描述这个应用要做什么、面向谁使用、核心功能点等"></textarea>
-          </label>
+        <label class="form-field">
+          <span class="form-label">功能描述<span class="form-required">*</span></span>
+          <textarea id="fieldDescription" rows="7" maxlength="2000" placeholder="简要描述这个应用要做什么、面向谁使用、核心功能点等"></textarea>
+        </label>
 
-          <div class="form-field">
-            <span class="form-label">图标（可选）</span>
-            <div class="icon-uploader">
-              <div class="icon-preview" id="iconPreview" aria-hidden="true">
-                <span class="icon-placeholder" id="iconPlaceholder">?</span>
-              </div>
-              <div class="icon-actions">
-                <input type="file" id="fieldIcon" accept="image/png,image/jpeg,image/webp,image/svg+xml" hidden />
-                <button type="button" class="btn btn--ghost" id="iconPickBtn">选择图片</button>
-                <button type="button" class="btn btn--ghost" id="iconClearBtn" hidden>清除</button>
-                <p class="form-hint">建议 256×256 px 正方形，PNG/JPG/WebP/SVG，≤500KB。不上传则随机生成颜色。</p>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="preview-col">
-          <div class="preview-label">提交给小龙虾的文案（可修改后复制）</div>
-          <textarea id="previewText" class="preview-text" rows="10" placeholder="填完左侧表单后会自动生成文案……"></textarea>
-          <p class="form-hint">复制此段文案到飞书找"小龙虾"会话粘贴，由小龙虾确认后才会真正创建应用。</p>
-        </div>
+        <p class="form-hint">点击下方按钮会生成创建文案并复制到剪贴板，请到飞书粘贴给"小龙虾"。图标将由 claw-application-skill 自动生成。</p>
       </div>
 
       <div class="modal__footer">
@@ -75,6 +131,6 @@
 
   <div class="toast" id="toast" hidden></div>
 
-  <script src="app.js?v=2"></script>
+  <script src="app.js?v=4"></script>
 </body>
 </html>

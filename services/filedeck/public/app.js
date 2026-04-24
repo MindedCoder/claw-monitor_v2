@@ -176,8 +176,19 @@ function setDrawerHeader(file) {
   downloadLink.download = file.name;
   downloadLink.textContent = '下载文件';
 
+  const refreshButton = document.createElement('button');
+  refreshButton.type = 'button';
+  refreshButton.className = 'action';
+  refreshButton.textContent = '刷新';
+  refreshButton.addEventListener('click', () => {
+    fileContentCache.delete(file.id);
+    pendingFileRequests.delete(file.id);
+    previewFile(file.id);
+  });
+
   actions.appendChild(copyPathButton);
   actions.appendChild(downloadLink);
+  actions.appendChild(refreshButton);
 }
 
 function renderDrawerBody(file) {
