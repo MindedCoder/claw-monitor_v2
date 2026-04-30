@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>BFE Hub</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <header class="topbar">
+        <button
+          type="button"
+          class="back-button hidden"
+          id="back-button"
+          aria-label="返回"
+        >
+          ← 返回
+        </button>
+        <h1 id="page-title">BFE Hub</h1>
+        <span class="host-tag hidden" id="host-tag"></span>
+      </header>
+      <main id="view"></main>
+      <button
+        type="button"
+        class="fab hidden"
+        id="fab-upload"
+        aria-label="上传新应用"
+      >
+        +
+      </button>
+    </div>
+    <div class="toast hidden" id="toast"></div>
+    <script src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,13 @@
+{
+  "name": "hub",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Internal application hub for tailnet users",
+  "main": "server.js",
+  "dependencies": {
+    "express": "^4.21.2"
+  },
+  "scripts": {
+    "start": "node server.js"
+  }
+}
