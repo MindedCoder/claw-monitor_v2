@@ -215,7 +215,7 @@ export function createServer(config, routes, onLog) {
       }
 
       const target = subPath || 'index.html';
-      return serveFromDir(appDir, target, res);
+      return serveFromDir(appDir, target, res, { noCache: true });
     }
 
     const key = `${req.method} ${path}`;
@@ -246,7 +246,7 @@ function serveStatic(config, urlPath, res) {
   return serveFromDir(staticDir, rel, res);
 }
 
-function serveFromDir(baseDir, rel, res) {
+function serveFromDir(baseDir, rel, res, { noCache = false } = {}) {
   const filePath = join(baseDir, rel);
 
   // prevent directory traversal
@@ -256,12 +256,19 @@ function serveFromDir(baseDir, rel, res) {
   const ext = extname(filePath).toLowerCase();
   const mime = MIME[ext] || 'application/octet-stream';
   const body = readFileSync(filePath);
-  // HTML must revalidate so that versioned asset URLs (?v=N) flow through
-  const cacheControl = ext === '.html' ? 'no-cache, must-revalidate' : 'public, max-age=3600';
-  res.writeHead(200, {
+  // HTML always revalidates; user-app files opt into no-cache so edits show immediately.
+  const cacheControl = noCache || ext === '.html'
+    ? 'no-cache, no-store, must-revalidate'
+    : 'public, max-age=3600';
+  const headers = {
     'Content-Type': mime,
     'Content-Length': body.length,
     'Cache-Control': cacheControl,
-  });
+  };
+  if (noCache || ext === '.html') {
+    headers['Pragma'] = 'no-cache';
+    headers['Expires'] = '0';
+  }
+  res.writeHead(200, headers);
   res.end(body);
 }
