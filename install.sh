@@ -9,6 +9,8 @@ PLIST_LABEL="com.claw-monitor-v2.monitor"
 PLIST_FILE="${HOME}/Library/LaunchAgents/${PLIST_LABEL}.plist"
 CONFIG_FILE="${INSTALL_DIR}/data/config.json"
 OPENCLAW_CONFIG_FILE="${HOME}/.openclaw/openclaw.json"
+HUB_PULLER_URL_DEFAULT="http://100.76.197.26:8126"
+HUB_PULLER_URL="${HUB_PULLER_URL:-$HUB_PULLER_URL_DEFAULT}"
 
 configure_feishu_status() {
   local mode="$1"
@@ -317,6 +319,7 @@ done
 STARTUP_SCRIPT="${INSTALL_DIR}/data/startup.sh"
 cat > "$STARTUP_SCRIPT" << WRAPPER
 #!/usr/bin/env bash
+export HUB_PULLER_URL="${HUB_PULLER_URL}"
 cd "${INSTALL_DIR}"
 exec "${NODE_BIN}" src/index.js >> data/monitor.log 2>&1
 WRAPPER
@@ -370,6 +373,8 @@ if [ "$(uname -s)" = "Darwin" ]; then
   <dict>
     <key>PATH</key>
     <string>/usr/local/bin:/opt/homebrew/bin:${HOME}/bin:$(dirname "${NODE_BIN}"):/usr/bin:/bin</string>
+    <key>HUB_PULLER_URL</key>
+    <string>${HUB_PULLER_URL}</string>
   </dict>
 </dict>
 </plist>

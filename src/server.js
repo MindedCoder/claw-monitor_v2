@@ -33,6 +33,7 @@ console.log(`[hub] PULLER_URL=${PULLER_URL}`);
 const MIME = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
   '.json': 'application/json', '.png': 'image/png', '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg', '.webp': 'image/webp',
   '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
   '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf',
 };
@@ -124,11 +125,11 @@ export function createServer(config, routes, onLog) {
       const forwardedPath = path.slice('/hub-puller'.length) || '/';
       const upstream = http.request(
         {
-          host: '127.0.0.1',
+          host: '100.76.197.26',
           port: 8126,
           method: req.method,
           path: `${forwardedPath}${url.search || ''}`,
-          headers: { ...req.headers, host: '127.0.0.1:8126' },
+          headers: { ...req.headers, host: '100.76.197.26:8126' },
         },
         (upstreamRes) => {
           res.writeHead(upstreamRes.statusCode || 502, upstreamRes.headers);
