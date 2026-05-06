@@ -73,6 +73,10 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 .log-table { width:100%; border-collapse:collapse; font-size:12px; }
 .log-table th { text-align:left; color:#8b949e; padding:4px 8px; border-bottom:1px solid #21262d; position:sticky; top:0; background:#161b22; }
 .log-table td { padding:3px 8px; border-bottom:1px solid #0d1117; vertical-align:top; }
+.cron-table-wrap { margin-top:12px; max-height:320px; overflow-y:auto; }
+.cron-table td:nth-child(2) { white-space:nowrap; width:72px; }
+.cron-table td:nth-child(3) { min-width:180px; color:#8b949e; }
+.cron-next { font-size:16px; }
 .log-time { white-space:nowrap; color:#8b949e; width:70px; }
 .log-source { color:#58a6ff; width:60px; }
 .log-level { font-weight:500; width:40px; }

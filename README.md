@@ -19,6 +19,7 @@
 │   │  ├── Ping 探测 (百度 / Google)                  │     │
 │   │  ├── Codex 使用量                              │     │
 │   │  ├── OpenClaw 健康检查                          │     │
+│   │  ├── 定时任务状态                               │     │
 │   │  ├── 日志收集器 (SSE 实时流)                    │     │
 │   │  ├── 系统日志                                  │     │
 │   │  └── 静态部署记录                              │     │
@@ -128,6 +129,12 @@ git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/.bfe/claw-monitor
     "intervalMs": 5000
   },
 
+  "cron": {
+    "enabled": true,
+    "url": "http://127.0.0.1:18789/cron",    // 定时任务状态地址
+    "intervalMs": 5000
+  },
+
   "ping": {
     "enabled": true,
     "targets": [                   // Ping 目标列表
@@ -200,6 +207,13 @@ git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/.bfe/claw-monitor
 | GET | `/api/health` | 获取健康状态 |
 | GET | `/api/health/check` | 立即执行健康检查 |
 | GET | `/api/health/history` | 检查历史记录 |
+
+### 定时任务
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/cron` | 获取缓存的定时任务状态 |
+| GET | `/api/cron/refresh` | 立即刷新定时任务状态 |
 
 ### 日志
 
