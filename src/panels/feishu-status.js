@@ -9,7 +9,7 @@ import { esc } from '../lib/html.js';
 const execFileAsync = promisify(execFile);
 
 const DEFAULTS = {
-  enabled: true,
+  enabled: false,
   gatewayUrl: 'ws://localhost:18789',
   gatewayToken: '',
   clientAuthToken: '',
@@ -463,14 +463,12 @@ export default function createFeishuStatusPanel(config) {
         const contextBadge = row.contextPct == null ? '未知' : `${row.contextPct}%`;
         return `
           <tr>
-            <td>
-              <div class="feishu-name">${esc(row.customerName)}</div>
+            <td class="feishu-name-cell">
+              <div class="feishu-name" title="${esc(row.customerName)}">${esc(row.customerName)}</div>
             </td>
             <td><span class="status-badge ${row.status.code}">${esc(row.status.text)}</span></td>
             <td><span class="status-badge ${contextClass(row.contextPct)}">${esc(contextBadge)}</span></td>
-            <td>${esc(row.model)}</td>
             <td>${esc(relTime(row.updatedAt))}</td>
-            <td>${esc(row.label)}</td>
           </tr>`;
       })
       .join('');
@@ -491,8 +489,8 @@ export default function createFeishuStatusPanel(config) {
         <div class="card-time">最近同步: ${esc(state.lastRefreshAt ? relTime(state.lastRefreshAt) : '-')}</div>
         <div class="log-table-wrap feishu-table-wrap">
           <table class="log-table feishu-table">
-            <thead><tr><th>客户</th><th>状态</th><th>Context</th><th>模型</th><th>活跃</th><th>标签</th></tr></thead>
-            <tbody>${rowsHtml || '<tr><td colspan="6" class="no-data">暂无飞书会话数据</td></tr>'}</tbody>
+            <thead><tr><th>客户</th><th>状态</th><th>Context</th><th>活跃</th></tr></thead>
+            <tbody>${rowsHtml || '<tr><td colspan="4" class="no-data">暂无飞书会话数据</td></tr>'}</tbody>
           </table>
         </div>
       </div>`;

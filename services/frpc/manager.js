@@ -85,6 +85,7 @@ export function getVersion() {
 }
 
 export class FrpcService {
+  name = 'frpc';
   #config;
   #child = null;
   #pid = null;

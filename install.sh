@@ -9,40 +9,16 @@ PLIST_LABEL="com.claw-monitor-v2.monitor"
 PLIST_FILE="${HOME}/Library/LaunchAgents/${PLIST_LABEL}.plist"
 CONFIG_FILE="${INSTALL_DIR}/data/config.json"
 OPENCLAW_CONFIG_FILE="${HOME}/.openclaw/openclaw.json"
+HUB_PULLER_URL_DEFAULT="http://100.76.197.26:8126"
+HUB_PULLER_URL="${HUB_PULLER_URL:-$HUB_PULLER_URL_DEFAULT}"
 
 configure_feishu_status() {
   local mode="$1"
   local default_enable="$2"
   local enable_choice=""
-  local active_minutes=""
-  local refresh_ms=""
-
-  echo ""
-  if [ "$mode" = "new" ]; then
-    read -rp "是否启用飞书聊天状态监控? [y/N]: " enable_choice
-  else
-    read -rp "是否配置/更新飞书聊天状态监控? [y/N]: " enable_choice
-  fi
-
-  if [[ ! "$enable_choice" =~ ^[Yy]$ ]]; then
-    if [ "$mode" = "new" ] && [ "$default_enable" != "true" ]; then
-      export CONFIG_FILE FEISHU_ENABLE="false"
-      node <<'NODE'
-const fs = require('fs');
-const path = process.env.CONFIG_FILE;
-const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
-if (cfg.feishuStatus) delete cfg.feishuStatus;
-fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
-console.log('[INFO] Feishu status monitor disabled');
-NODE
-    else
-      echo "[INFO] Skipping feishuStatus config changes"
-    fi
-    return
-  fi
-
-  active_minutes="240"
-  refresh_ms="5000"
+  local active_minutes="240"
+  local refresh_ms="5000"
+  local currently_enabled="false"
 
   if [ -f "$CONFIG_FILE" ]; then
     local existing_values
@@ -51,8 +27,9 @@ const fs = require('fs');
 const path = process.env.CONFIG_FILE;
 const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
 const f = cfg.feishuStatus || {};
+const enabled = cfg.feishuStatus && f.enabled !== false ? 'true' : 'false';
 console.log([
-  f.enabled === false ? 'false' : 'true',
+  enabled,
   String(f.activeMinutes || 240),
   String(f.refreshIntervalMs || 5000),
 ].join('\n'));
@@ -63,10 +40,31 @@ NODE
       local lines=()
       IFS=$'\n' read -r -d '' -a lines < <(printf '%s\0' "$existing_values")
       IFS="$old_ifs"
-      default_enable="${lines[0]:-true}"
+      currently_enabled="${lines[0]:-false}"
       active_minutes="${lines[1]:-240}"
       refresh_ms="${lines[2]:-5000}"
     fi
+  fi
+
+  echo ""
+  if [ "$mode" = "existing" ] && [ "$currently_enabled" = "true" ]; then
+    read -rp "飞书聊天状态监控当前已启用，是否保持启用? [Y/n]: " enable_choice
+    [ -z "$enable_choice" ] && enable_choice="y"
+  else
+    read -rp "是否启用飞书聊天状态监控? [y/N]: " enable_choice
+  fi
+
+  if [[ ! "$enable_choice" =~ ^[Yy]$ ]]; then
+    export CONFIG_FILE
+    node <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+cfg.feishuStatus = { enabled: false };
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+console.log('[INFO] Feishu status monitor disabled');
+NODE
+    return
   fi
 
   echo "[INFO] 默认通过本机 openclaw 会话存储读取数据，无需填写 Gateway WS/Token"
@@ -188,6 +186,10 @@ if [ ! -f "$CONFIG_FILE" ]; then
   read -p "实例名称 [default]: " INPUT_INSTANCE
   INPUT_INSTANCE="${INPUT_INSTANCE:-default}"
 
+  # display name (shown in top-left)
+  read -p "中文显示名 [${INPUT_INSTANCE}]: " INPUT_DISPLAY
+  INPUT_DISPLAY="${INPUT_DISPLAY:-$INPUT_INSTANCE}"
+
   # monitor port
   read -p "监控面板端口 [9001]: " INPUT_PORT
   INPUT_PORT="${INPUT_PORT:-9001}"
@@ -197,6 +199,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
 {
   "port": ${INPUT_PORT},
   "instanceName": "${INPUT_INSTANCE}",
+  "displayName": "${INPUT_DISPLAY}",
   "basePath": "",
 
   "health": {
@@ -316,6 +319,7 @@ done
 STARTUP_SCRIPT="${INSTALL_DIR}/data/startup.sh"
 cat > "$STARTUP_SCRIPT" << WRAPPER
 #!/usr/bin/env bash
+export HUB_PULLER_URL="${HUB_PULLER_URL}"
 cd "${INSTALL_DIR}"
 exec "${NODE_BIN}" src/index.js >> data/monitor.log 2>&1
 WRAPPER
@@ -369,6 +373,8 @@ if [ "$(uname -s)" = "Darwin" ]; then
   <dict>
     <key>PATH</key>
     <string>/usr/local/bin:/opt/homebrew/bin:${HOME}/bin:$(dirname "${NODE_BIN}"):/usr/bin:/bin</string>
+    <key>HUB_PULLER_URL</key>
+    <string>${HUB_PULLER_URL}</string>
   </dict>
 </dict>
 </plist>

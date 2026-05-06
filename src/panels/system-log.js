@@ -44,7 +44,7 @@ export default function createSystemLogPanel() {
   }
 
   function render() {
-    const recent = entries.toArray().slice(-20);
+    const recent = entries.toArray().slice(-20).reverse();
     const levelColor = { info: '#8be9fd', warn: '#f1fa8c', error: '#ff5555' };
 
     const rows = recent.map(e => `

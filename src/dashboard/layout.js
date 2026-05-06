@@ -1,18 +1,19 @@
-export function pageShell(instanceName, bodyHtml, showAll = false) {
+export function pageShell(instanceName, bodyHtml, showAll = false, displayName) {
   const basePath = instanceName ? '/' + instanceName : '';
   const showParam = showAll ? '?show=all' : '';
+  const title = displayName || instanceName;
   return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>${instanceName} - Claw Monitor v2</title>
+  <title>${title} - Claw Console</title>
   <style>${CSS}</style>
 </head>
 <body>
   <header class="topbar">
-    <h1>${instanceName}</h1>
-    <span class="version">Claw Monitor v2</span>
+    <h1>${title}</h1>
+    <span class="version">Claw Console</span>
   </header>
   <main class="app">${bodyHtml}</main>
   <script>const BASE='${basePath}';const SHOW_PARAM='${showParam}';${JS}</script>
@@ -104,7 +105,9 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 .claw-detail-key { color:#8b949e; min-width:80px; }
 .claw-detail-val { color:#c9d1d9; }
 .feishu-subrow td { padding-top:0; }
-.feishu-name { font-weight:600; color:#c9d1d9; }
+.feishu-name-cell { max-width:90px; width:90px; }
+.feishu-name { font-weight:600; color:#c9d1d9; max-width:90px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.feishu-table .status-badge { white-space:nowrap; }
 .feishu-key { font-size:11px; color:#8b949e; margin-top:2px; word-break:break-all; }
 .feishu-line { font-size:12px; color:#8b949e; padding:2px 0; }
 .feishu-k { display:inline-block; min-width:64px; color:#8b949e; }
@@ -130,12 +133,37 @@ async function refreshCodex() {
     await fetch(BASE+'/api/codex-usage/refresh');
   } catch(e) { console.error(e); }
 }
+let logHover = false;
+document.addEventListener('mouseover', e => {
+  logHover = !!e.target.closest && !!e.target.closest('.log-table-wrap');
+});
+document.addEventListener('mouseout', e => {
+  if (e.target.closest && e.target.closest('.log-table-wrap')) logHover = false;
+});
+function hasLogSelection() {
+  const sel = window.getSelection && window.getSelection();
+  if (!sel || sel.isCollapsed || sel.rangeCount === 0) return false;
+  const node = sel.anchorNode;
+  if (!node) return false;
+  const el = node.nodeType === 1 ? node : node.parentElement;
+  return !!(el && el.closest && el.closest('.log-table-wrap'));
+}
 setInterval(async () => {
+  if (logHover || hasLogSelection()) return;
   try {
+    const scrolls = {};
+    document.querySelectorAll('.panel').forEach(p => {
+      const wrap = p.querySelector('.log-table-wrap');
+      if (wrap) scrolls[p.className] = wrap.scrollTop;
+    });
     const r = await fetch(BASE+'/api/html'+SHOW_PARAM);
     if (r.ok) {
       const html = await r.text();
       document.querySelector('.app').innerHTML = html;
+      document.querySelectorAll('.panel').forEach(p => {
+        const wrap = p.querySelector('.log-table-wrap');
+        if (wrap && scrolls[p.className] != null) wrap.scrollTop = scrolls[p.className];
+      });
     }
   } catch {}
 }, 3000);

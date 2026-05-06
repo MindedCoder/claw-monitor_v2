@@ -112,6 +112,10 @@ git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/.bfe/claw-monitor
 - 启动监控服务 (带保活)
 - 注册 macOS LaunchAgent (开机自启)
 
+默认会把 Hub 的后端数据源设为中心 puller：
+- `HUB_PULLER_URL=http://100.76.197.26:8126`
+- 如需覆盖，可在执行 `install.sh` 或 `update.sh` 前自行导出该环境变量
+
 安装完成后访问: http://127.0.0.1:9001
 
 ## 配置

@@ -1,10 +1,12 @@
 import { pageShell } from './layout.js';
 
-const HIDDEN_PANELS = new Set(['deploy', 'system-log']);
+const HIDDEN_PANELS = new Set(['deploy', 'system-log', 'frpc', 'logs', 'feishu-status', 'applications']);
 
 export function renderFull(config, panels, showAll = false) {
   const inner = renderInner(panels, showAll);
-  return pageShell(config.instanceName || 'Claw Monitor', inner, showAll);
+  const instanceName = config.instanceName || 'Claw Monitor';
+  const displayName = config.displayName || instanceName;
+  return pageShell(instanceName, inner, showAll, displayName);
 }
 
 export function renderInner(panels, showAll = false) {
