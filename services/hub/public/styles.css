@@ -411,16 +411,18 @@ body {
 }
 
 .icon-btn {
-  width: 30px;
+  min-width: 30px;
   height: 30px;
+  padding: 0 8px;
   border-radius: 6px;
   border: 1px solid var(--line);
   background: var(--line-soft);
   color: var(--text);
-  font-size: 14px;
+  font-size: 12px;
   cursor: pointer;
-  display: grid;
-  place-items: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   text-decoration: none;
 }
 
@@ -558,6 +560,48 @@ label.field > span {
   color: #fff;
 }
 
+.platform-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 4px 14px 10px;
+}
+
+.platform-tab {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--muted);
+  font: inherit;
+  font-size: 12px;
+  padding: 4px 12px;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+
+.platform-tab:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.platform-tab.active {
+  background: var(--accent-soft);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.download-area {
+  padding: 0 14px 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.download-area .btn {
+  align-self: flex-start;
+}
+
 @media (max-width: 480px) {
   .app {
     padding: 0 0 18px;
@@ -570,5 +614,11 @@ label.field > span {
   }
   .topbar h1 {
     font-size: 16px;
+  }
+  .platform-tabs {
+    padding: 4px 12px 8px;
+  }
+  .download-area {
+    padding: 0 12px 4px;
   }
 }

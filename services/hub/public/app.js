@@ -79,6 +79,37 @@
     return d.toLocaleDateString();
   }
 
+  const PLATFORM_LABELS = {
+    macos: 'macOS',
+    'macos-arm64': 'macOS arm64',
+    'macos-x86-64': 'macOS x86_64',
+    windows: 'Windows',
+    'windows-arm64': 'Windows arm64',
+    linux: 'Linux',
+    'linux-arm64': 'Linux arm64',
+    'linux-x86-64': 'Linux x86_64',
+  };
+
+  function platformLabel(p) {
+    return PLATFORM_LABELS[p] || p;
+  }
+
+  function platformIconText(p) {
+    if (!p) return '↓';
+    if (p.startsWith('mac')) return 'mac';
+    if (p.startsWith('win')) return 'win';
+    if (p.startsWith('linux')) return 'lin';
+    return p.slice(0, 3);
+  }
+
+  function detectPlatform() {
+    const ua = (navigator.userAgent || '').toLowerCase();
+    if (ua.includes('windows')) return 'windows';
+    if (ua.includes('mac')) return 'macos';
+    if (ua.includes('linux')) return 'linux';
+    return null;
+  }
+
   async function fetchJson(path, options) {
     const res = await fetch(api(path), options);
     const text = await res.text();
@@ -207,8 +238,9 @@
                 el('div', {
                   class: 'entry-sub',
                   text:
-                    (app.latest ? 'v' + app.latest : '无版本') +
-                    ' · ' +
+                    (app.platforms && app.platforms.length
+                      ? app.platforms.map(platformLabel).join(' · ') + ' · '
+                      : '') +
                     app.versionCount +
                     ' 个版本 · ' +
                     humanTime(app.latestUploadedAt),
@@ -233,6 +265,15 @@
     view.appendChild(el('div', { class: 'loading', text: '加载中…' }));
     try {
       const index = await fetchJson('/api/apps/' + encodeURIComponent(appId));
+      let latestManifest = null;
+      if (index.latest) {
+        latestManifest = await fetchJson(
+          '/api/apps/' +
+            encodeURIComponent(appId) +
+            '/versions/' +
+            encodeURIComponent(index.latest)
+        );
+      }
       view.innerHTML = '';
       pageTitle.textContent = index.name || index.appId;
 
@@ -247,74 +288,122 @@
           el('div', { class: 'detail-desc', text: index.description })
         );
       }
-      const actionButtons = [
-        el('a', {
-          class: 'btn',
-          href: api('/api/download/' + encodeURIComponent(appId) + '/latest'),
-          text: index.latest ? '下载最新 v' + index.latest : '暂无版本',
-          ...(index.latest ? {} : { disabled: true }),
-        }),
-      ];
-      if (uploadsEnabled()) {
-        actionButtons.push(
-          el('button', {
-            type: 'button',
-            class: 'btn secondary',
-            text: '上传新版本',
-            onclick: () => navigate('/upload/' + encodeURIComponent(appId)),
-          })
-        );
-      }
-      if (actionButtons.length) {
-        headChildren.push(
-          el('div', { class: 'btn-row', style: 'padding:0 14px 6px' }, actionButtons)
-        );
-      }
-      headChildren.push(
-        el('div', { class: 'download-hint' }, [
-          '文件会保存到浏览器默认下载目录（macOS 通常为 ',
-          el('code', { text: '~/Downloads/' }),
-          '）',
-        ])
-      );
-      headChildren.push(buildInstructionsBlock(index));
-      const head = el('div', { class: 'card' }, headChildren);
-      const wrap = el('div', { class: 'stack' }, [head]);
-      view.appendChild(wrap);
 
-      if (index.versions.length) {
+      const latestEntry = (index.versions && index.versions[0]) || null;
+      const platforms = latestEntry ? latestEntry.platforms || [] : [];
+
+      if (platforms.length === 0) {
+        headChildren.push(
+          el('div', { class: 'empty', text: '暂无可下载的平台版本' })
+        );
+      } else {
+        const detected = detectPlatform();
+        let active =
+          detected && platforms.find((p) => p.platform === detected)
+            ? detected
+            : platforms[0].platform;
+
+        const tabBar = el('div', { class: 'platform-tabs' });
+        const downloadArea = el('div', { class: 'download-area' });
+        const instructionsArea = el('div');
+
+        function renderForPlatform(platform) {
+          active = platform;
+          const info = platforms.find((p) => p.platform === platform);
+          const declared = info && info.declaredVersion;
+
+          tabBar.innerHTML = '';
+          for (const p of platforms) {
+            tabBar.appendChild(
+              el('button', {
+                type: 'button',
+                class: 'platform-tab' + (p.platform === platform ? ' active' : ''),
+                text:
+                  platformLabel(p.platform) +
+                  (p.declaredVersion ? ' · v' + p.declaredVersion : ''),
+                onclick: () => renderForPlatform(p.platform),
+              })
+            );
+          }
+
+          downloadArea.innerHTML = '';
+          downloadArea.appendChild(
+            el('a', {
+              class: 'btn',
+              href: api(
+                '/api/download/' +
+                  encodeURIComponent(appId) +
+                  '/latest/' +
+                  encodeURIComponent(platform)
+              ),
+              text:
+                '下载 ' +
+                platformLabel(platform) +
+                (declared ? ' v' + declared : ''),
+            })
+          );
+          downloadArea.appendChild(
+            el('div', { class: 'download-hint' }, [
+              '文件会保存到浏览器默认下载目录（macOS 通常为 ',
+              el('code', { text: '~/Downloads/' }),
+              '）',
+            ])
+          );
+
+          const artifactInfo =
+            (latestManifest &&
+              (latestManifest.artifacts || []).find((a) => a.platform === platform)) ||
+            null;
+          const text = artifactInfo ? (artifactInfo.instructions || '').trim() : '';
+          instructionsArea.innerHTML = '';
+          instructionsArea.appendChild(buildInstructionsBlock(text, platform));
+        }
+
+        renderForPlatform(active);
+        headChildren.push(tabBar);
+        headChildren.push(downloadArea);
+        headChildren.push(instructionsArea);
+      }
+
+      const head = el('div', { class: 'card' }, headChildren);
+      view.appendChild(el('div', { class: 'stack' }, [head]));
+
+      if (index.versions && index.versions.length) {
         view.appendChild(
           el('div', { class: 'section-title', text: '版本历史' })
         );
         const verCard = el('div', { class: 'card', style: 'padding:0' });
         index.versions.forEach((v, i) => {
+          const platformIcons = (v.platforms || []).map((p) =>
+            el('a', {
+              class: 'icon-btn',
+              title:
+                '下载 ' +
+                platformLabel(p.platform) +
+                (p.declaredVersion ? ' v' + p.declaredVersion : ''),
+              href: api(
+                '/api/download/' +
+                  encodeURIComponent(appId) +
+                  '/' +
+                  encodeURIComponent(v.version) +
+                  '/' +
+                  encodeURIComponent(p.platform)
+              ),
+              text: platformIconText(p.platform),
+            })
+          );
           verCard.appendChild(
             el('div', { class: 'version-row' }, [
               el('span', {
                 class: 'version-badge' + (i === 0 ? ' latest' : ''),
-                text: 'v' + v.version,
+                text: v.version,
               }),
-              el('div', { class: 'version-meta' }, [
-                humanSize(v.size) + ' · ' + humanTime(v.uploadedAt),
-              ]),
-              el('div', { class: 'version-actions' }, [
-                el('a', {
-                  class: 'icon-btn',
-                  title: '下载',
-                  href: api(
-                    '/api/download/' +
-                      encodeURIComponent(appId) +
-                      '/' +
-                      encodeURIComponent(v.version)
-                  ),
-                  text: '↓',
-                }),
-              ]),
+              el('div', { class: 'version-meta' }, [humanTime(v.uploadedAt)]),
+              el('div', { class: 'version-actions' }, platformIcons),
             ])
           );
         });
-        const verWrap = el('div', { class: 'stack' }, [verCard]);
-        view.appendChild(verWrap);
+        view.appendChild(el('div', { class: 'stack' }, [verCard]));
       }
     } catch (err) {
       view.innerHTML = '';
@@ -322,47 +411,45 @@
     }
   }
 
-  function buildInstructionsBlock(index) {
-    const text = (index.instructions || '').trim();
+  function buildInstructionsBlock(text, platform) {
+    text = (text || '').trim();
     const wrap = el('div', { class: 'instructions-block' });
-    wrap.appendChild(el('div', { class: 'instructions-head' }, ['下载后怎么用']));
+    const headLabel = platform
+      ? '下载后怎么用 · ' + platformLabel(platform)
+      : '下载后怎么用';
+    wrap.appendChild(el('div', { class: 'instructions-head', text: headLabel }));
     if (!text) {
-      const uploader = index.uploader ? ' ' + index.uploader : '';
       wrap.appendChild(
-        el('div', {
-          class: 'instructions-empty',
-          text: '上传者未填写说明' + (uploader ? '，请联系' + uploader : ''),
-        })
+        el('div', { class: 'instructions-empty', text: '上传者未填写说明' })
       );
       return wrap;
     }
-    const pre = el('pre', { class: 'instructions-pre', text });
-    const copyBtn = el('button', {
-      type: 'button',
-      class: 'btn secondary instructions-copy',
-      text: '复制说明',
-      onclick: async () => {
-        try {
-          await navigator.clipboard.writeText(text);
-          toast('已复制到剪贴板');
-        } catch (_err) {
-          // fallback for insecure contexts
-          const ta = document.createElement('textarea');
-          ta.value = text;
-          document.body.appendChild(ta);
-          ta.select();
+    wrap.appendChild(el('pre', { class: 'instructions-pre', text }));
+    wrap.appendChild(
+      el('button', {
+        type: 'button',
+        class: 'btn secondary instructions-copy',
+        text: '复制说明',
+        onclick: async () => {
           try {
-            document.execCommand('copy');
+            await navigator.clipboard.writeText(text);
             toast('已复制到剪贴板');
-          } catch (_e) {
-            toast('复制失败，请手动选择', 'danger');
+          } catch (_err) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try {
+              document.execCommand('copy');
+              toast('已复制到剪贴板');
+            } catch (_e) {
+              toast('复制失败，请手动选择', 'danger');
+            }
+            document.body.removeChild(ta);
           }
-          document.body.removeChild(ta);
-        }
-      },
-    });
-    wrap.appendChild(pre);
-    wrap.appendChild(copyBtn);
+        },
+      })
+    );
     return wrap;
   }
 
