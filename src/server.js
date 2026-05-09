@@ -36,6 +36,7 @@ const MIME = {
   '.jpeg': 'image/jpeg', '.webp': 'image/webp',
   '.gif': 'image/gif', '.svg': 'image/svg+xml', '.ico': 'image/x-icon',
   '.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf',
+  '.txt': 'text/plain; charset=utf-8',
 };
 
 const PROXY_FORWARD_HEADERS = [

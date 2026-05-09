@@ -12,6 +12,24 @@ const ICON_COLORS = [
   '#14b8a6', '#22c1c3', '#ff6b6b', '#f06292', '#9575cd',
 ];
 
+// progress.txt 事件 -> (累积百分比, 中文阶段名)
+// 由 claw-application-skill 写入；这里只读不写。
+const PROGRESS_EVENTS = {
+  STAGE2_START:        [5,  '已注册，准备生成图标...'],
+  PLAN_ARCHIVED:       [10, '规划已归档'],
+  ICON_GENERATED:      [25, '图标已生成'],
+  ICON_INSTALLED:      [35, '图标已就绪'],
+  ICON_SKIPPED:        [35, '图标已就绪（跳过）'],
+  FILES_WRITTEN:       [65, 'UI 代码已写完'],
+  HTTP_VERIFIED:       [75, '应用已就绪'],
+  STAGE2_DONE:         [80, '进入自查阶段'],
+  STAGE3_START:        [82, '自查中...'],
+  SELF_CHECK_PASS:     [95, '自查通过'],
+  STAGE3_DONE:         [100, '完成 ✅'],
+  STAGE3_FORCE_PASS:   [100, '完成 ✅（部分项已放过）'],
+};
+const DONE_EVENTS = new Set(['STAGE3_DONE', 'STAGE3_FORCE_PASS']);
+
 export default function createApplicationsPanel(config) {
   const storeDir = APPLICATIONS_STORE_DIR;
 
@@ -116,6 +134,48 @@ export default function createApplicationsPanel(config) {
     return value.length <= 800 * 1024; // ~600KB binary after base64 decode
   }
 
+  function readProgress(appId) {
+    const progressPath = resolve(storeDir, appId, 'progress.txt');
+    if (!existsSync(progressPath)) return null;
+    let text;
+    try {
+      text = readFileSync(progressPath, 'utf8');
+    } catch {
+      return null;
+    }
+    const lines = text.split('\n').filter(Boolean);
+    if (lines.length === 0) return null;
+
+    // 第一行用于 startedAt
+    const firstMatch = lines[0].match(/^\[([^\]]+)\]/);
+    const startedAt = firstMatch ? firstMatch[1] : null;
+
+    // 倒序找第一个能识别的事件名
+    let lastEvent = null;
+    for (let i = lines.length - 1; i >= 0; i--) {
+      const m = lines[i].match(/^\[[^\]]+\]\s+(\w+)/);
+      if (m && PROGRESS_EVENTS[m[1]]) {
+        lastEvent = m[1];
+        break;
+      }
+    }
+    if (!lastEvent) return null;
+
+    const [percent, stage] = PROGRESS_EVENTS[lastEvent];
+    // 是否完成：扫全文找 DONE 事件（即使最后一行是 STAGE3_FORCE_PASS 也能识别）
+    const done = lines.some((l) => {
+      const m = l.match(/^\[[^\]]+\]\s+(\w+)/);
+      return m && DONE_EVENTS.has(m[1]);
+    });
+
+    return {
+      status: done ? 'done' : 'creating',
+      percent,
+      stage,
+      startedAt,
+    };
+  }
+
   function publicView(app) {
     return {
       id: app.id,
@@ -125,6 +185,7 @@ export default function createApplicationsPanel(config) {
       iconColor: app.iconColor || null,
       createdAt: app.createdAt,
       updatedAt: app.updatedAt,
+      progress: readProgress(app.id),
     };
   }
 

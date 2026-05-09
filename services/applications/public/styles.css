@@ -485,6 +485,67 @@ body {
   padding: 0;
 }
 
+/* ---------- Creating state ---------- */
+
+.app-item--creating .app-icon {
+  opacity: 0.45;
+  filter: saturate(0.5);
+}
+
+.app-item--creating .app-label {
+  color: var(--cyan);
+}
+
+.app-item--creating .app-desc {
+  opacity: 0.7;
+}
+
+.app-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.app-progress__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.app-progress__stage {
+  color: var(--cyan);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.app-progress__percent {
+  color: var(--magenta);
+  font-variant-numeric: tabular-nums;
+  flex-shrink: 0;
+}
+
+.app-progress__bar {
+  position: relative;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.app-progress__fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan), var(--magenta));
+  box-shadow: 0 0 8px rgba(0, 240, 255, 0.5);
+  transition: width 0.5s ease;
+}
+
 /* ---------- Modal ---------- */
 
 .modal {

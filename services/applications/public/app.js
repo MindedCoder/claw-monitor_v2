@@ -17,9 +17,12 @@
   }
 
   function renderAppItem(app) {
+    const isCreating = app.progress && app.progress.status === 'creating';
+
     const link = document.createElement('a');
-    link.className = 'app-item';
-    link.href = `./${app.id}/`;
+    link.className = isCreating ? 'app-item app-item--creating' : 'app-item';
+    // creating 态点击跳进度页（progress.txt 是 plain text，浏览器可直接看）；done 态点击进应用本身
+    link.href = isCreating ? `./${app.id}/progress.txt` : `./${app.id}/`;
 
     const idTag = document.createElement('span');
     idTag.className = 'app-item__id';
@@ -51,14 +54,44 @@
       link.appendChild(desc);
     }
 
-    const arrow = document.createElement('span');
-    arrow.className = 'app-item__arrow';
-    arrow.setAttribute('aria-hidden', 'true');
-    arrow.textContent = '→';
-    link.appendChild(arrow);
+    if (isCreating) {
+      const progress = document.createElement('div');
+      progress.className = 'app-progress';
+
+      const row = document.createElement('div');
+      row.className = 'app-progress__row';
+      const stage = document.createElement('span');
+      stage.className = 'app-progress__stage';
+      stage.textContent = app.progress.stage || '处理中...';
+      const percent = document.createElement('span');
+      percent.className = 'app-progress__percent';
+      percent.textContent = `${app.progress.percent}%`;
+      row.appendChild(stage);
+      row.appendChild(percent);
+      progress.appendChild(row);
+
+      const bar = document.createElement('div');
+      bar.className = 'app-progress__bar';
+      const fill = document.createElement('div');
+      fill.className = 'app-progress__fill';
+      fill.style.width = `${app.progress.percent}%`;
+      bar.appendChild(fill);
+      progress.appendChild(bar);
+
+      link.appendChild(progress);
+    } else {
+      const arrow = document.createElement('span');
+      arrow.className = 'app-item__arrow';
+      arrow.setAttribute('aria-hidden', 'true');
+      arrow.textContent = '→';
+      link.appendChild(arrow);
+    }
 
     return link;
   }
+
+  let pollTimer = null;
+  const POLL_INTERVAL = 5000;
 
   async function loadApps() {
     try {
@@ -74,6 +107,15 @@
       });
 
       if (appCount) appCount.textContent = String(apps.length).padStart(2, '0');
+
+      // 只有列表里存在 creating 应用时才保持轮询；没有就停
+      const hasCreating = apps.some((a) => a.progress && a.progress.status === 'creating');
+      if (hasCreating && !pollTimer) {
+        pollTimer = setInterval(loadApps, POLL_INTERVAL);
+      } else if (!hasCreating && pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = null;
+      }
     } catch (err) {
       console.error('加载应用列表失败', err);
     }

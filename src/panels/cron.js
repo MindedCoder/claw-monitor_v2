@@ -277,10 +277,10 @@ export default function createCronPanel(config) {
     const title = task.description ? ` title="${esc(task.description)}"` : '';
     return `
       <tr>
-        <td${title}>${esc(task.name)}</td>
-        <td>${enabledText}</td>
-        <td>${nextWakeup}</td>
-        <td>${meta || '-'}</td>
+        <td data-label="任务"${title}>${esc(task.name)}</td>
+        <td data-label="启用">${enabledText}</td>
+        <td data-label="下次唤醒">${nextWakeup}</td>
+        <td data-label="状态 / 表达式">${meta || '-'}</td>
       </tr>`;
   }
 
