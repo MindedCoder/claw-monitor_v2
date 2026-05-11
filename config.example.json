@@ -45,6 +45,12 @@
     "staticDir": "./data/static"
   },
 
+  "wecomArchiveRelay": {
+    "_注": "启用方式:把 enabled 改 true,sharedSecret 填后台 BfeClawInstance.openclawWebhookSecret 同一值;pluginUrl/timeoutMs/ringSize 不写则用 panel 内置默认(http://127.0.0.1:18789/plugins/wecom-archive/ingest / 7000ms / 100 条)",
+    "enabled": false,
+    "sharedSecret": ""
+  },
+
   "feishuStatus": {
     "enabled": true,
     "gatewayUrl": "ws://localhost:18789",
