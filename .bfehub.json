@@ -1,0 +1,15 @@
+{
+  "name": "Claw Monitor V2",
+  "description": "监控面板",
+  "artifact": [
+    {
+      "platform": "macos",
+      "version": "1.0.0",
+      "path": ".",
+      "instructions": "",
+      "installHook": "install.sh",
+      "updateHook": "update.sh",
+      "uninstallHook": "uninstall.sh"
+    }
+  ]
+}
