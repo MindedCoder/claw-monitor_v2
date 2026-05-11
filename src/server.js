@@ -9,6 +9,7 @@ import {
   APPLICATIONS_PUBLIC_DIR,
   APPLICATIONS_STORE_DIR,
 } from './lib/applications-store.js';
+import { renderProgressPage } from './panels/applications.js';
 
 const require = createRequire(import.meta.url);
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -214,6 +215,19 @@ export function createServer(config, routes, onLog) {
       if (slashIdx === -1) {
         res.writeHead(301, { Location: basePath + '/applications/' + appId + '/' });
         return res.end();
+      }
+
+      // /applications/<id>/progress → 美化 HTML 进度页（不是物理文件）
+      // 创建中自动 meta refresh，完成后展示"打开应用"链接
+      if (subPath === 'progress') {
+        const html = renderProgressPage(appId);
+        if (!html) return send404(res);
+        res.writeHead(200, {
+          'Content-Type': 'text/html; charset=utf-8',
+          'Content-Length': Buffer.byteLength(html),
+          'Cache-Control': 'no-store',
+        });
+        return res.end(html);
       }
 
       const target = subPath || 'index.html';

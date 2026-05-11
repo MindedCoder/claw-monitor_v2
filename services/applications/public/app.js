@@ -21,8 +21,8 @@
 
     const link = document.createElement('a');
     link.className = isCreating ? 'app-item app-item--creating' : 'app-item';
-    // creating 态点击跳进度页（progress.txt 是 plain text，浏览器可直接看）；done 态点击进应用本身
-    link.href = isCreating ? `./${app.id}/progress.txt` : `./${app.id}/`;
+    // creating 态点击跳美化进度页（server 端渲染，含进度条 + 自动刷新）；done 态点击进应用本身
+    link.href = isCreating ? `./${app.id}/progress` : `./${app.id}/`;
 
     const idTag = document.createElement('span');
     idTag.className = 'app-item__id';
