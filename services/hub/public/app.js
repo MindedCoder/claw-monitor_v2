@@ -110,6 +110,36 @@
     return null;
   }
 
+  async function copyText(text, okMsg) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(okMsg || '已复制到剪贴板');
+      return;
+    } catch (_err) {
+      // fall through to textarea fallback (non-secure contexts / Safari < 13.1)
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      toast(okMsg || '已复制到剪贴板');
+    } catch (_e) {
+      toast('复制失败,请手动选择', 'danger');
+    }
+    document.body.removeChild(ta);
+  }
+
+  // hub 知道自己的公网前缀(浏览器看到的 origin + API_PREFIX), 比 puller
+  // 从 Forwarded headers 反推更可靠。puller 收到 ?hub= 时优先用它。
+  function buildInstallCommand(appId) {
+    const hub = location.origin + API_PREFIX;
+    const url = hub + '/api/install/' + encodeURIComponent(appId)
+      + '?hub=' + encodeURIComponent(hub);
+    return 'curl -fsSL "' + url + '" | bash';
+  }
+
   async function fetchJson(path, options) {
     const res = await fetch(api(path), options);
     const text = await res.text();
@@ -327,26 +357,35 @@
           }
 
           downloadArea.innerHTML = '';
+          const installCmd = buildInstallCommand(appId);
           downloadArea.appendChild(
-            el('a', {
-              class: 'btn',
-              href: api(
-                '/api/download/' +
-                  encodeURIComponent(appId) +
-                  '/latest/' +
-                  encodeURIComponent(platform)
-              ),
-              text:
-                '下载 ' +
-                platformLabel(platform) +
-                (declared ? ' v' + declared : ''),
-            })
+            el('div', { class: 'btn-row' }, [
+              el('button', {
+                type: 'button',
+                class: 'btn',
+                text: '复制一键安装命令',
+                onclick: () => copyText(installCmd, '安装命令已复制,粘贴到终端执行即可'),
+              }),
+              el('a', {
+                class: 'btn secondary',
+                href: api(
+                  '/api/download/' +
+                    encodeURIComponent(appId) +
+                    '/latest/' +
+                    encodeURIComponent(platform)
+                ),
+                text:
+                  '下载 ' +
+                  platformLabel(platform) +
+                  (declared ? ' v' + declared : ''),
+              }),
+            ])
           );
           downloadArea.appendChild(
             el('div', { class: 'download-hint' }, [
-              '文件会保存到浏览器默认下载目录（macOS 通常为 ',
-              el('code', { text: '~/Downloads/' }),
-              '）',
+              '一键安装会装到 ',
+              el('code', { text: '~/.bfe/bfe-hub/apps/' + appId + '/' }),
+              '(需要 curl + bash + jq);也可直接下载文件到浏览器默认目录自行处理',
             ])
           );
 
@@ -430,24 +469,7 @@
         type: 'button',
         class: 'btn secondary instructions-copy',
         text: '复制说明',
-        onclick: async () => {
-          try {
-            await navigator.clipboard.writeText(text);
-            toast('已复制到剪贴板');
-          } catch (_err) {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            document.body.appendChild(ta);
-            ta.select();
-            try {
-              document.execCommand('copy');
-              toast('已复制到剪贴板');
-            } catch (_e) {
-              toast('复制失败，请手动选择', 'danger');
-            }
-            document.body.removeChild(ta);
-          }
-        },
+        onclick: () => copyText(text),
       })
     );
     return wrap;
