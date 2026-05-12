@@ -3,8 +3,10 @@ import { Readable } from 'node:stream';
 import { createRequire } from 'node:module';
 import { parseUrl, sendJson, sendHtml, send404, sendText } from './lib/http-helpers.js';
 import { readFileSync, existsSync, statSync } from 'node:fs';
+import { promises as fsp } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
+import os from 'node:os';
 import {
   APPLICATIONS_PUBLIC_DIR,
   APPLICATIONS_STORE_DIR,
@@ -30,6 +32,7 @@ const PULLER_URL = (
   process.env.HUB_PULLER_URL || 'https://claw.bfelab.com/monitor/hub-puller'
 ).replace(/\/+$/, '');
 console.log(`[hub] PULLER_URL=${PULLER_URL}`);
+const LOCAL_BFE_HUB_REGISTRY = join(os.homedir(), '.bfe', 'bfe-hub', 'registry.json');
 
 const MIME = {
   '.html': 'text/html', '.css': 'text/css', '.js': 'application/javascript',
@@ -79,6 +82,42 @@ async function proxyHubApiToPuller(req, res, subPath, search) {
   } else {
     res.end();
   }
+}
+
+async function readInstalledApps() {
+  let raw = '{}';
+  try {
+    raw = await fsp.readFile(LOCAL_BFE_HUB_REGISTRY, 'utf8');
+  } catch (error) {
+    if (error.code === 'ENOENT') return { apps: [] };
+    throw error;
+  }
+
+  let parsed = {};
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    parsed = {};
+  }
+
+  const apps = Object.entries(parsed)
+    .map(([appId, entry]) => ({
+      appId,
+      currentVersion: entry?.currentVersion || '',
+      declaredVersion: entry?.declaredVersion || '',
+      platform: entry?.platform || '',
+      artifactType: entry?.artifactType || '',
+      installedAt: entry?.installedAt || '',
+      lastUpdatedAt: entry?.lastUpdatedAt || '',
+      managePath: entry?.managePath || '',
+    }))
+    .sort((a, b) => {
+      const left = a.lastUpdatedAt || a.installedAt || '';
+      const right = b.lastUpdatedAt || b.installedAt || '';
+      return left < right ? 1 : left > right ? -1 : a.appId.localeCompare(b.appId);
+    });
+
+  return { apps };
 }
 
 export function createServer(config, routes, onLog) {
@@ -165,6 +204,17 @@ export function createServer(config, routes, onLog) {
           title: 'BFE Hub',
           uploadsEnabled: false,
         });
+      }
+
+      if (subPath === '/api/installed-apps') {
+        readInstalledApps()
+          .then((data) => sendJson(res, data))
+          .catch((err) => {
+            log('warn', `[hub] installed-apps error: ${err.message}`);
+            res.writeHead(500, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ error: err.message }));
+          });
+        return;
       }
 
       if (subPath.startsWith('/api/')) {

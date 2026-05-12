@@ -21,6 +21,7 @@
   const toastEl = document.getElementById('toast');
 
   let metaCache = null;
+  let listMode = 'all';
 
   function api(path) {
     return API_PREFIX + path;
@@ -223,6 +224,94 @@
     }
   }
 
+  function buildMineSubtitle(app) {
+    return [
+      app.platform ? platformLabel(app.platform) : '',
+      app.declaredVersion ? 'v' + app.declaredVersion : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  function buildAllSubtitle(app) {
+    return (
+      (app.platforms && app.platforms.length
+        ? app.platforms.map(platformLabel).join(' · ') + ' · '
+        : '') +
+      app.versionCount +
+      ' 个版本 · ' +
+      humanTime(app.latestUploadedAt)
+    );
+  }
+
+  function buildListEntry(app, options) {
+    const listKind = options && options.listKind ? options.listKind : 'all';
+    const latestInfo = options && options.latestInfo ? options.latestInfo : null;
+    const clickable = options && options.clickable !== false;
+    const hasUpdate =
+      listKind === 'mine' &&
+      !!latestInfo &&
+      !!latestInfo.latest &&
+      !!app.currentVersion &&
+      latestInfo.latest !== app.currentVersion;
+    const subtitle =
+      listKind === 'mine'
+        ? buildMineSubtitle(app)
+        : buildAllSubtitle(app);
+
+    const entryTag = clickable ? 'button' : 'div';
+    const entryAttrs = clickable
+      ? {
+          type: 'button',
+          class: 'entry',
+          onclick: () => navigate('/app/' + encodeURIComponent(app.appId)),
+        }
+      : {
+          class: 'entry entry-static',
+        };
+    const entryChildren = [
+      el('span', { class: 'entry-icon', text: '📦' }),
+      el('span', { class: 'entry-body' }, [
+        el('div', { class: 'entry-title', text: app.name || app.appId }),
+        el('div', {
+          class: 'entry-sub',
+          text: subtitle,
+        }),
+      ]),
+    ];
+    if (clickable) {
+      entryChildren.push(el('span', { class: 'entry-tail', text: '›' }));
+    }
+    const entryMain = el(entryTag, entryAttrs, entryChildren);
+
+    if (!(listKind === 'mine' && hasUpdate)) {
+      return entryMain;
+    }
+
+    const installCmd = buildInstallCommand(app.appId);
+    const updateRow = el('div', { class: 'entry-update-row' }, [
+      el('span', { class: 'entry-update-badge', text: '可更新' }),
+      el('span', {
+        class: 'entry-update-text',
+        text: '最新版本 ' + latestInfo.latest,
+      }),
+      el('button', {
+        type: 'button',
+        class: 'btn secondary entry-action-btn',
+        text: '复制更新命令',
+        onclick: (event) => {
+          event.stopPropagation();
+          copyText(installCmd, '更新命令已复制,粘贴到终端执行即可');
+        },
+      }),
+    ]);
+
+    return el('div', { class: 'entry-group' }, [
+      entryMain,
+      updateRow,
+    ]);
+  }
+
   // ---------- List view ----------
 
   async function renderList() {
@@ -235,15 +324,60 @@
     }
 
     try {
-      const data = await fetchJson('/api/apps');
       view.innerHTML = '';
-      if (!data.apps.length) {
+      const listScreen = el('div', { class: 'list-screen' });
+      const listBody = el('div', { class: 'list-body' });
+      const switchBar = el('div', { class: 'list-switch' }, [
+        el('button', {
+          type: 'button',
+          class: 'list-switch-tab' + (listMode === 'all' ? ' active' : ''),
+          text: '全部',
+          onclick: () => {
+            if (listMode === 'all') return;
+            listMode = 'all';
+            renderList();
+          },
+        }),
+        el('button', {
+          type: 'button',
+          class: 'list-switch-tab' + (listMode === 'mine' ? ' active' : ''),
+          text: '我的',
+          onclick: () => {
+            if (listMode === 'mine') return;
+            listMode = 'mine';
+            renderList();
+          },
+        }),
+      ]);
+      listScreen.appendChild(listBody);
+      listScreen.appendChild(switchBar);
+      view.appendChild(listScreen);
+
+      let apps = [];
+      let latestByAppId = {};
+      if (listMode === 'mine') {
+        const [installedData, remoteData] = await Promise.all([
+          fetchJson('/api/installed-apps'),
+          fetchJson('/api/apps').catch(() => ({ apps: [] })),
+        ]);
+        apps = installedData.apps || [];
+        latestByAppId = Object.fromEntries(
+          (remoteData.apps || []).map((app) => [app.appId, app])
+        );
+      } else {
+        const data = await fetchJson('/api/apps');
+        apps = data.apps || [];
+      }
+
+      if (!apps.length) {
         const emptyHint = uploadsEnabled()
           ? '点击右下角 + 上传第一个应用'
-          : '上传功能暂未开放';
-        view.appendChild(
+          : listMode === 'mine'
+            ? '当前实例还没有安装任何应用'
+            : '上传功能暂未开放';
+        listBody.appendChild(
           el('div', { class: 'empty' }, [
-            '还没有任何应用',
+            listMode === 'mine' ? '还没有已安装应用' : '还没有任何应用',
             el('br'),
             el('span', { class: 'muted', text: emptyHint }),
           ])
@@ -252,37 +386,26 @@
       }
       const stack = el('div', { class: 'stack' });
       const card = el('div', { class: 'card', style: 'padding:0' });
-      for (const app of data.apps) {
+      for (const app of apps) {
         card.appendChild(
-          el(
-            'button',
-            {
-              type: 'button',
-              class: 'entry',
-              onclick: () => navigate('/app/' + encodeURIComponent(app.appId)),
-            },
-            [
-              el('span', { class: 'entry-icon', text: '📦' }),
-              el('span', { class: 'entry-body' }, [
-                el('div', { class: 'entry-title', text: app.name || app.appId }),
-                el('div', {
-                  class: 'entry-sub',
-                  text:
-                    (app.platforms && app.platforms.length
-                      ? app.platforms.map(platformLabel).join(' · ') + ' · '
-                      : '') +
-                    app.versionCount +
-                    ' 个版本 · ' +
-                    humanTime(app.latestUploadedAt),
-                }),
-              ]),
-              el('span', { class: 'entry-tail', text: '›' }),
-            ]
-          )
+          buildListEntry(app, {
+            listKind: listMode,
+            latestInfo: listMode === 'mine' ? latestByAppId[app.appId] : null,
+            clickable: listMode !== 'mine',
+          })
         );
       }
       stack.appendChild(card);
-      view.appendChild(stack);
+      listBody.appendChild(stack);
+
+      if (listMode === 'mine' && apps.some((app) => {
+        const latestInfo = latestByAppId[app.appId];
+        return latestInfo && latestInfo.latest && app.currentVersion && latestInfo.latest !== app.currentVersion;
+      })) {
+        listBody.appendChild(
+          el('div', { class: 'muted list-mine-hint', text: '有新版本的应用会在列表中显示“复制更新命令”。' })
+        );
+      }
     } catch (err) {
       view.innerHTML = '';
       view.appendChild(el('div', { class: 'empty', text: '加载失败: ' + err.message }));

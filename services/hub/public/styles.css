@@ -141,6 +141,54 @@ body {
   letter-spacing: 0.5px;
 }
 
+.list-screen {
+  min-height: calc(100vh - 64px - var(--safe-top) - var(--safe-bottom));
+  display: flex;
+  flex-direction: column;
+}
+
+.list-body {
+  flex: 1 1 auto;
+  padding-bottom: calc(88px + var(--safe-bottom));
+}
+
+.list-switch {
+  position: sticky;
+  bottom: 0;
+  z-index: 15;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin: auto 12px 0;
+  padding: 10px 12px calc(10px + var(--safe-bottom));
+  border-top: 1px solid var(--line);
+  background: var(--panel);
+  box-shadow: 0 -10px 24px rgba(0, 0, 0, 0.24);
+}
+
+.list-switch-tab {
+  min-height: 40px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.list-switch-tab:hover {
+  background: var(--line-soft);
+  color: var(--text);
+}
+
+.list-switch-tab.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
 .entry {
   width: 100%;
   text-align: left;
@@ -162,6 +210,14 @@ body {
 
 .entry:hover {
   background: var(--line-soft);
+}
+
+.entry-static {
+  cursor: default;
+}
+
+.entry-static:hover {
+  background: transparent;
 }
 
 .entry-icon {
@@ -203,6 +259,57 @@ body {
   color: var(--muted-dim);
   font-size: 14px;
   white-space: nowrap;
+}
+
+.entry-group {
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.entry-group:last-child {
+  border-bottom: 0;
+}
+
+.entry-group .entry {
+  border-bottom: 0;
+}
+
+.entry-update-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 0 16px 12px 60px;
+}
+
+.entry-update-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: rgba(210, 153, 34, 0.12);
+  color: var(--warn);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+}
+
+.entry-update-text {
+  min-width: 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.entry-action-btn {
+  margin-left: auto;
+  min-height: 28px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.list-mine-hint {
+  margin: 14px 16px 0;
 }
 
 .btn {
