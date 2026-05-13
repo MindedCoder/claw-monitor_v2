@@ -4,6 +4,7 @@ import { esc, relative, toBJ } from '../lib/html.js';
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { resolve } from 'node:path';
+import { spawnSync } from 'node:child_process';
 
 function pickFirst(...values) {
   for (const value of values) {
@@ -186,10 +187,81 @@ function loadLocalCronPayload() {
   };
 }
 
+function runOpenclawCronJson(args) {
+  const result = spawnSync('openclaw', ['cron', ...args, '--json'], {
+    encoding: 'utf8',
+    timeout: 5000,
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error((result.stderr || result.stdout || `openclaw cron ${args.join(' ')} failed`).trim());
+  }
+  const text = (result.stdout || '').trim();
+  if (!text) {
+    throw new Error(`openclaw cron ${args.join(' ')} returned empty output`);
+  }
+  return JSON.parse(text);
+}
+
+function loadCliCronPayload() {
+  const status = runOpenclawCronJson(['status']);
+  const list = runOpenclawCronJson(['list', '--all']);
+  const merged = {
+    ...list,
+    ...status,
+    jobs: Array.isArray(list?.jobs)
+      ? list.jobs
+      : Array.isArray(list?.tasks)
+        ? list.tasks
+        : [],
+    taskCount: pickFirst(
+      status?.taskCount,
+      status?.count,
+      list?.taskCount,
+      list?.count,
+      Array.isArray(list?.jobs) ? list.jobs.length : null,
+      Array.isArray(list?.tasks) ? list.tasks.length : null,
+    ),
+    nextWakeup: pickFirst(
+      status?.nextWakeup,
+      status?.nextWakeAt,
+      status?.nextWakeAtMs,
+      status?.nextRun,
+      status?.nextRunAt,
+      list?.nextWakeup,
+      list?.nextWakeAt,
+      list?.nextWakeAtMs,
+      list?.nextRun,
+      list?.nextRunAt,
+    ),
+  };
+  const normalized = normalizeCronPayload(merged);
+  return {
+    ...normalized,
+    raw: { status, list },
+    source: 'cli',
+  };
+}
+
+async function loadRemoteCronPayload(url, timeoutMs) {
+  const res = await fetchWithTimeout(url, { timeoutMs });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  const text = await res.text();
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    if (trimmed.startsWith('<')) {
+      throw new Error('cron 接口返回了 HTML 页面，请检查 cron.url 是否指向了登录页/错误页，或上游服务是否未启动');
+    }
+    throw error;
+  }
+}
+
 export default function createCronPanel(config) {
   const cfg = config.cron || {};
   const panelEnabled = cfg.enabled !== false;
-  const url = cfg.url || 'http://127.0.0.1:18789/cron';
+  const url = cfg.url || '';
   const intervalMs = cfg.intervalMs || 5000;
   const timeoutMs = cfg.timeoutMs || 5000;
 
@@ -208,10 +280,13 @@ export default function createCronPanel(config) {
 
   async function refresh() {
     try {
-      const res = await fetchWithTimeout(url, { timeoutMs });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
-      const normalized = normalizeCronPayload(data);
+      let normalized = null;
+      if (url) {
+        const data = await loadRemoteCronPayload(url, timeoutMs);
+        normalized = normalizeCronPayload(data);
+      } else {
+        normalized = loadCliCronPayload();
+      }
       state.enabled = normalized.enabled;
       state.taskCount = normalized.taskCount;
       state.nextWakeup = normalized.nextWakeup;
@@ -221,16 +296,27 @@ export default function createCronPanel(config) {
       state.error = null;
     } catch (err) {
       try {
-        const local = loadLocalCronPayload();
-        state.enabled = local.enabled;
-        state.taskCount = local.taskCount;
-        state.nextWakeup = local.nextWakeup;
-        state.tasks = local.tasks;
-        state.raw = local.raw;
-        state.source = local.source;
+        const cli = loadCliCronPayload();
+        state.enabled = cli.enabled;
+        state.taskCount = cli.taskCount;
+        state.nextWakeup = cli.nextWakeup;
+        state.tasks = cli.tasks;
+        state.raw = cli.raw;
+        state.source = cli.source;
         state.error = null;
       } catch {
-        state.error = err.message;
+        try {
+          const local = loadLocalCronPayload();
+          state.enabled = local.enabled;
+          state.taskCount = local.taskCount;
+          state.nextWakeup = local.nextWakeup;
+          state.tasks = local.tasks;
+          state.raw = local.raw;
+          state.source = local.source;
+          state.error = null;
+        } catch {
+          state.error = err.message;
+        }
       }
     }
     state.lastCheck = Date.now();
@@ -312,7 +398,14 @@ export default function createCronPanel(config) {
 
     const errorHtml = state.error ? `<div class="claw-error">拉取失败: ${esc(state.error)}</div>` : '';
     const rows = state.tasks.slice(0, 20).map(renderTaskRow).join('');
-    const sourceText = state.source === 'local' ? '来源: 本地 jobs.json' : state.source === 'api' ? '来源: /cron 接口' : '';
+    const sourceText =
+      state.source === 'local'
+        ? '来源: 本地 jobs.json'
+        : state.source === 'api'
+          ? '来源: /cron 接口'
+          : state.source === 'cli'
+            ? '来源: openclaw cron status/list'
+            : '';
     const taskTable = `
       <div class="cron-table-wrap">
         <table class="log-table cron-table">
