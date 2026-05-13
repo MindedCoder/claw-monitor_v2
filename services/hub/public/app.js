@@ -373,11 +373,11 @@
         const emptyHint = uploadsEnabled()
           ? '点击右下角 + 上传第一个应用'
           : listMode === 'mine'
-            ? '当前实例还没有安装任何应用'
+            ? '当前实例还没有安装任何应用。先在本机执行安装命令，安装成功后这里才会出现。'
             : '上传功能暂未开放';
         listBody.appendChild(
           el('div', { class: 'empty' }, [
-            listMode === 'mine' ? '还没有已安装应用' : '还没有任何应用',
+            listMode === 'mine' ? '本机还没有已安装应用' : '还没有任何应用',
             el('br'),
             el('span', { class: 'muted', text: emptyHint }),
           ])

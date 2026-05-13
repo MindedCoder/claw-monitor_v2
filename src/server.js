@@ -96,8 +96,11 @@ async function readInstalledApps() {
   let parsed = {};
   try {
     parsed = JSON.parse(raw);
-  } catch {
-    parsed = {};
+  } catch (error) {
+    const e = new Error(`invalid local registry JSON: ${LOCAL_BFE_HUB_REGISTRY}`);
+    e.code = 'EINVAL_LOCAL_REGISTRY';
+    e.cause = error;
+    throw e;
   }
 
   const apps = Object.entries(parsed)
