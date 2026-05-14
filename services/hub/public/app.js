@@ -21,6 +21,7 @@
   const toastEl = document.getElementById('toast');
 
   let metaCache = null;
+  let listMode = 'all';
 
   function api(path) {
     return API_PREFIX + path;
@@ -110,6 +111,36 @@
     return null;
   }
 
+  async function copyText(text, okMsg) {
+    try {
+      await navigator.clipboard.writeText(text);
+      toast(okMsg || '已复制到剪贴板');
+      return;
+    } catch (_err) {
+      // fall through to textarea fallback (non-secure contexts / Safari < 13.1)
+    }
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    try {
+      document.execCommand('copy');
+      toast(okMsg || '已复制到剪贴板');
+    } catch (_e) {
+      toast('复制失败,请手动选择', 'danger');
+    }
+    document.body.removeChild(ta);
+  }
+
+  // hub 知道自己的公网前缀(浏览器看到的 origin + API_PREFIX), 比 puller
+  // 从 Forwarded headers 反推更可靠。puller 收到 ?hub= 时优先用它。
+  function buildInstallCommand(appId) {
+    const hub = location.origin + API_PREFIX;
+    const url = hub + '/api/install/' + encodeURIComponent(appId)
+      + '?hub=' + encodeURIComponent(hub);
+    return 'curl -fsSL "' + url + '" | bash';
+  }
+
   async function fetchJson(path, options) {
     const res = await fetch(api(path), options);
     const text = await res.text();
@@ -193,6 +224,94 @@
     }
   }
 
+  function buildMineSubtitle(app) {
+    return [
+      app.platform ? platformLabel(app.platform) : '',
+      app.declaredVersion ? 'v' + app.declaredVersion : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
+  }
+
+  function buildAllSubtitle(app) {
+    return (
+      (app.platforms && app.platforms.length
+        ? app.platforms.map(platformLabel).join(' · ') + ' · '
+        : '') +
+      app.versionCount +
+      ' 个版本 · ' +
+      humanTime(app.latestUploadedAt)
+    );
+  }
+
+  function buildListEntry(app, options) {
+    const listKind = options && options.listKind ? options.listKind : 'all';
+    const latestInfo = options && options.latestInfo ? options.latestInfo : null;
+    const clickable = options && options.clickable !== false;
+    const hasUpdate =
+      listKind === 'mine' &&
+      !!latestInfo &&
+      !!latestInfo.latest &&
+      !!app.currentVersion &&
+      latestInfo.latest !== app.currentVersion;
+    const subtitle =
+      listKind === 'mine'
+        ? buildMineSubtitle(app)
+        : buildAllSubtitle(app);
+
+    const entryTag = clickable ? 'button' : 'div';
+    const entryAttrs = clickable
+      ? {
+          type: 'button',
+          class: 'entry',
+          onclick: () => navigate('/app/' + encodeURIComponent(app.appId)),
+        }
+      : {
+          class: 'entry entry-static',
+        };
+    const entryChildren = [
+      el('span', { class: 'entry-icon', text: '📦' }),
+      el('span', { class: 'entry-body' }, [
+        el('div', { class: 'entry-title', text: app.name || app.appId }),
+        el('div', {
+          class: 'entry-sub',
+          text: subtitle,
+        }),
+      ]),
+    ];
+    if (clickable) {
+      entryChildren.push(el('span', { class: 'entry-tail', text: '›' }));
+    }
+    const entryMain = el(entryTag, entryAttrs, entryChildren);
+
+    if (!(listKind === 'mine' && hasUpdate)) {
+      return entryMain;
+    }
+
+    const installCmd = buildInstallCommand(app.appId);
+    const updateRow = el('div', { class: 'entry-update-row' }, [
+      el('span', { class: 'entry-update-badge', text: '可更新' }),
+      el('span', {
+        class: 'entry-update-text',
+        text: '最新版本 ' + latestInfo.latest,
+      }),
+      el('button', {
+        type: 'button',
+        class: 'btn secondary entry-action-btn',
+        text: '复制更新命令',
+        onclick: (event) => {
+          event.stopPropagation();
+          copyText(installCmd, '更新命令已复制,粘贴到终端执行即可');
+        },
+      }),
+    ]);
+
+    return el('div', { class: 'entry-group' }, [
+      entryMain,
+      updateRow,
+    ]);
+  }
+
   // ---------- List view ----------
 
   async function renderList() {
@@ -205,15 +324,60 @@
     }
 
     try {
-      const data = await fetchJson('/api/apps');
       view.innerHTML = '';
-      if (!data.apps.length) {
+      const listScreen = el('div', { class: 'list-screen' });
+      const listBody = el('div', { class: 'list-body' });
+      const switchBar = el('div', { class: 'list-switch' }, [
+        el('button', {
+          type: 'button',
+          class: 'list-switch-tab' + (listMode === 'all' ? ' active' : ''),
+          text: '全部',
+          onclick: () => {
+            if (listMode === 'all') return;
+            listMode = 'all';
+            renderList();
+          },
+        }),
+        el('button', {
+          type: 'button',
+          class: 'list-switch-tab' + (listMode === 'mine' ? ' active' : ''),
+          text: '我的',
+          onclick: () => {
+            if (listMode === 'mine') return;
+            listMode = 'mine';
+            renderList();
+          },
+        }),
+      ]);
+      listScreen.appendChild(listBody);
+      listScreen.appendChild(switchBar);
+      view.appendChild(listScreen);
+
+      let apps = [];
+      let latestByAppId = {};
+      if (listMode === 'mine') {
+        const [installedData, remoteData] = await Promise.all([
+          fetchJson('/api/installed-apps'),
+          fetchJson('/api/apps').catch(() => ({ apps: [] })),
+        ]);
+        apps = installedData.apps || [];
+        latestByAppId = Object.fromEntries(
+          (remoteData.apps || []).map((app) => [app.appId, app])
+        );
+      } else {
+        const data = await fetchJson('/api/apps');
+        apps = data.apps || [];
+      }
+
+      if (!apps.length) {
         const emptyHint = uploadsEnabled()
           ? '点击右下角 + 上传第一个应用'
-          : '上传功能暂未开放';
-        view.appendChild(
+          : listMode === 'mine'
+            ? '当前实例还没有安装任何应用。先在本机执行安装命令，安装成功后这里才会出现。'
+            : '上传功能暂未开放';
+        listBody.appendChild(
           el('div', { class: 'empty' }, [
-            '还没有任何应用',
+            listMode === 'mine' ? '本机还没有已安装应用' : '还没有任何应用',
             el('br'),
             el('span', { class: 'muted', text: emptyHint }),
           ])
@@ -222,37 +386,26 @@
       }
       const stack = el('div', { class: 'stack' });
       const card = el('div', { class: 'card', style: 'padding:0' });
-      for (const app of data.apps) {
+      for (const app of apps) {
         card.appendChild(
-          el(
-            'button',
-            {
-              type: 'button',
-              class: 'entry',
-              onclick: () => navigate('/app/' + encodeURIComponent(app.appId)),
-            },
-            [
-              el('span', { class: 'entry-icon', text: '📦' }),
-              el('span', { class: 'entry-body' }, [
-                el('div', { class: 'entry-title', text: app.name || app.appId }),
-                el('div', {
-                  class: 'entry-sub',
-                  text:
-                    (app.platforms && app.platforms.length
-                      ? app.platforms.map(platformLabel).join(' · ') + ' · '
-                      : '') +
-                    app.versionCount +
-                    ' 个版本 · ' +
-                    humanTime(app.latestUploadedAt),
-                }),
-              ]),
-              el('span', { class: 'entry-tail', text: '›' }),
-            ]
-          )
+          buildListEntry(app, {
+            listKind: listMode,
+            latestInfo: listMode === 'mine' ? latestByAppId[app.appId] : null,
+            clickable: listMode !== 'mine',
+          })
         );
       }
       stack.appendChild(card);
-      view.appendChild(stack);
+      listBody.appendChild(stack);
+
+      if (listMode === 'mine' && apps.some((app) => {
+        const latestInfo = latestByAppId[app.appId];
+        return latestInfo && latestInfo.latest && app.currentVersion && latestInfo.latest !== app.currentVersion;
+      })) {
+        listBody.appendChild(
+          el('div', { class: 'muted list-mine-hint', text: '有新版本的应用会在列表中显示“复制更新命令”。' })
+        );
+      }
     } catch (err) {
       view.innerHTML = '';
       view.appendChild(el('div', { class: 'empty', text: '加载失败: ' + err.message }));
@@ -327,26 +480,35 @@
           }
 
           downloadArea.innerHTML = '';
+          const installCmd = buildInstallCommand(appId);
           downloadArea.appendChild(
-            el('a', {
-              class: 'btn',
-              href: api(
-                '/api/download/' +
-                  encodeURIComponent(appId) +
-                  '/latest/' +
-                  encodeURIComponent(platform)
-              ),
-              text:
-                '下载 ' +
-                platformLabel(platform) +
-                (declared ? ' v' + declared : ''),
-            })
+            el('div', { class: 'btn-row' }, [
+              el('button', {
+                type: 'button',
+                class: 'btn',
+                text: '复制一键安装命令',
+                onclick: () => copyText(installCmd, '安装命令已复制,粘贴到终端执行即可'),
+              }),
+              el('a', {
+                class: 'btn secondary',
+                href: api(
+                  '/api/download/' +
+                    encodeURIComponent(appId) +
+                    '/latest/' +
+                    encodeURIComponent(platform)
+                ),
+                text:
+                  '下载 ' +
+                  platformLabel(platform) +
+                  (declared ? ' v' + declared : ''),
+              }),
+            ])
           );
           downloadArea.appendChild(
             el('div', { class: 'download-hint' }, [
-              '文件会保存到浏览器默认下载目录（macOS 通常为 ',
-              el('code', { text: '~/Downloads/' }),
-              '）',
+              '一键安装会装到 ',
+              el('code', { text: '~/.bfe/bfe-hub/apps/' + appId + '/' }),
+              '(需要 curl + bash + jq);也可直接下载文件到浏览器默认目录自行处理',
             ])
           );
 
@@ -430,24 +592,7 @@
         type: 'button',
         class: 'btn secondary instructions-copy',
         text: '复制说明',
-        onclick: async () => {
-          try {
-            await navigator.clipboard.writeText(text);
-            toast('已复制到剪贴板');
-          } catch (_err) {
-            const ta = document.createElement('textarea');
-            ta.value = text;
-            document.body.appendChild(ta);
-            ta.select();
-            try {
-              document.execCommand('copy');
-              toast('已复制到剪贴板');
-            } catch (_e) {
-              toast('复制失败，请手动选择', 'danger');
-            }
-            document.body.removeChild(ta);
-          }
-        },
+        onclick: () => copyText(text),
       })
     );
     return wrap;

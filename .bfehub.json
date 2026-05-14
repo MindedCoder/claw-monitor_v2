@@ -6,10 +6,9 @@
       "platform": "macos",
       "version": "1.0.0",
       "path": ".",
-      "instructions": "",
-      "installHook": "install.sh",
-      "updateHook": "update.sh",
-      "uninstallHook": "uninstall.sh"
+      "installHook": "bfehub-install.sh",
+      "updateHook": "bfehub-update.sh",
+      "uninstallHook": "bfehub-uninstall.sh"
     }
   ]
 }
