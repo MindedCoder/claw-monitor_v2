@@ -11,6 +11,11 @@ const ICON_COLORS = [
   '#ff5c8a', '#ff7a45', '#ff9f43', '#f0b100', '#55c24e',
   '#14b8a6', '#22c1c3', '#ff6b6b', '#f06292', '#9575cd',
 ];
+const UI_FILES = ['index.html', 'styles.css', 'app.js'];
+const PROGRESS_EVENT_ALIASES = {
+  SELF_CHECK_PASSED: 'SELF_CHECK_PASS',
+  SELF_CHECK_FAILED: 'SELF_CHECK_FAIL',
+};
 
 // progress.txt 事件 -> (累积百分比, 直白中文描述)
 // 由 claw-application-skill 写入；这里只读不写。
@@ -31,6 +36,29 @@ const PROGRESS_EVENTS = {
 };
 const DONE_EVENTS = new Set(['STAGE3_DONE', 'STAGE3_FORCE_PASS']);
 
+function normalizeProgressEvent(rawEvent) {
+  return PROGRESS_EVENT_ALIASES[rawEvent] || rawEvent;
+}
+
+function extractProgressEvents(lines) {
+  const events = [];
+  for (const line of lines) {
+    const m = line.match(/^\[[^\]]+\]\s+(\w+)/);
+    if (!m) continue;
+    events.push(normalizeProgressEvent(m[1]));
+  }
+  return events;
+}
+
+function isLegacyCompleteWithoutDone(appId, events) {
+  const hasSelfCheckPass = events.includes('SELF_CHECK_PASS');
+  const hasDone = events.some((event) => DONE_EVENTS.has(event));
+  const hasHttpVerified = events.includes('HTTP_VERIFIED');
+  if (!hasSelfCheckPass || hasDone || !hasHttpVerified) return false;
+  const appDir = resolve(APPLICATIONS_STORE_DIR, appId);
+  return UI_FILES.every((file) => existsSync(resolve(appDir, file)));
+}
+
 // 解析 ~/.openclaw/workspace/applications/<id>/progress.txt 并返回结构化进度对象。
 // 提到模块级（不依赖 panel closure），让 server.js 也能复用。
 export function readProgress(appId) {
@@ -47,13 +75,13 @@ export function readProgress(appId) {
 
   const firstMatch = lines[0].match(/^\[([^\]]+)\]/);
   const startedAt = firstMatch ? firstMatch[1] : null;
+  const events = extractProgressEvents(lines);
 
   // 已完成 → 永远定格在 100%，不被 Mode B/C 后续追加的事件干扰
   let doneEvent = null;
-  for (const l of lines) {
-    const m = l.match(/^\[[^\]]+\]\s+(\w+)/);
-    if (m && DONE_EVENTS.has(m[1])) {
-      doneEvent = m[1];
+  for (const rawEvent of events) {
+    if (DONE_EVENTS.has(rawEvent)) {
+      doneEvent = rawEvent;
       break;
     }
   }
@@ -62,11 +90,16 @@ export function readProgress(appId) {
     return { status: 'done', percent, stage, startedAt };
   }
 
+  // 兼容旧脏数据：自查已经通过，但漏写 STAGE3_DONE。
+  if (isLegacyCompleteWithoutDone(appId, events)) {
+    const [percent, stage] = PROGRESS_EVENTS.STAGE3_DONE;
+    return { status: 'done', percent, stage, startedAt };
+  }
+
   let lastEvent = null;
-  for (let i = lines.length - 1; i >= 0; i--) {
-    const m = lines[i].match(/^\[[^\]]+\]\s+(\w+)/);
-    if (m && PROGRESS_EVENTS[m[1]]) {
-      lastEvent = m[1];
+  for (let i = events.length - 1; i >= 0; i--) {
+    if (PROGRESS_EVENTS[events[i]]) {
+      lastEvent = events[i];
       break;
     }
   }
