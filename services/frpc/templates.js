@@ -2,7 +2,7 @@ export function generateToml(config) {
   const frpc = config.frpc || {};
   const lines = [];
 
-  lines.push(`serverAddr = "${frpc.serverAddr || '8.135.54.217'}"`);
+  lines.push(`serverAddr = "${frpc.serverAddr || 'claw.bfelab.com'}"`);
   lines.push(`serverPort = ${frpc.serverPort || 7000}`);
   lines.push('');
 

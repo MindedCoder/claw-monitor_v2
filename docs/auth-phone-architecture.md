@@ -211,7 +211,7 @@ node src/index.js
 由 `services/frpc/templates.js` 生成 `data/frpc.toml`：
 
 ```toml
-serverAddr = "8.135.54.217"
+serverAddr = "claw.bfelab.com"
 serverPort = 7000
 loginFailExit = false                    # 登录失败不退出，持续重试
 
@@ -690,7 +690,7 @@ db.codes.createIndex({ expiresAt: 1 }, { expireAfterSeconds: 0 })
   },
 
   "frpc": {
-    "serverAddr": "8.135.54.217",
+    "serverAddr": "claw.bfelab.com",
     "serverPort": 7000,
     "transport": {
       "heartbeatInterval": 10,

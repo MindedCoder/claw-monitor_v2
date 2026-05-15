@@ -237,7 +237,7 @@ if [ ! -f "$CONFIG_FILE" ]; then
 
   "frpc": {
     "version": "0.61.1",
-    "serverAddr": "8.135.54.217",
+    "serverAddr": "claw.bfelab.com",
     "serverPort": 7000,
     "loginFailExit": false,
     "transport": {

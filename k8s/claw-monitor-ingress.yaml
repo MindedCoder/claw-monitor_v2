@@ -11,7 +11,7 @@ spec:
   tls:
     - hosts:
         - claw.bfelab.com
-      secretName: bfefree
+      secretName: bfelab-com-tls
   rules:
     - host: claw.bfelab.com
       http:
@@ -38,7 +38,7 @@ spec:
   tls:
     - hosts:
         - claw.bfelab.com
-      secretName: bfefree
+      secretName: bfelab-com-tls
   rules:
     - host: claw.bfelab.com
       http:
@@ -74,13 +74,13 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     nginx.ingress.kubernetes.io/auth-url: "http://auth-gateway.bfe.svc.cluster.local:4180/auth/check?rd=$escaped_request_uri"
-    nginx.ingress.kubernetes.io/auth-signin: "https://claw.bfelab.com/auth/login?rd=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-signin: "https://claw.bfelab.com:31443/auth/login?rd=$escaped_request_uri"
 spec:
   ingressClassName: nginx
   tls:
     - hosts:
         - claw.bfelab.com
-      secretName: bfefree
+      secretName: bfelab-com-tls
   rules:
     - host: claw.bfelab.com
       http:
