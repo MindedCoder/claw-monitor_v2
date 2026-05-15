@@ -19,6 +19,7 @@
 │   │  ├── Ping 探测 (百度 / Google)                  │     │
 │   │  ├── Codex 使用量                              │     │
 │   │  ├── OpenClaw 健康检查                          │     │
+│   │  ├── 定时任务状态                               │     │
 │   │  ├── 日志收集器 (SSE 实时流)                    │     │
 │   │  ├── 系统日志                                  │     │
 │   │  └── 静态部署记录                              │     │
@@ -111,6 +112,10 @@ git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/.bfe/claw-monitor
 - 启动监控服务 (带保活)
 - 注册 macOS LaunchAgent (开机自启)
 
+默认会把 Hub 的后端数据源设为中心 puller：
+- `HUB_PULLER_URL=http://100.76.197.26:8126`
+- 如需覆盖，可在执行 `install.sh` 或 `update.sh` 前自行导出该环境变量
+
 安装完成后访问: http://127.0.0.1:9001
 
 ## 配置
@@ -125,6 +130,12 @@ git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/.bfe/claw-monitor
   "health": {
     "enabled": true,
     "url": "http://127.0.0.1:18789/health",  // OpenClaw 健康检查地址
+    "intervalMs": 5000
+  },
+
+  "cron": {
+    "enabled": true,
+    "url": "http://127.0.0.1:18789/cron",    // 定时任务状态地址
     "intervalMs": 5000
   },
 
@@ -200,6 +211,13 @@ git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/.bfe/claw-monitor
 | GET | `/api/health` | 获取健康状态 |
 | GET | `/api/health/check` | 立即执行健康检查 |
 | GET | `/api/health/history` | 检查历史记录 |
+
+### 定时任务
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/cron` | 获取缓存的定时任务状态 |
+| GET | `/api/cron/refresh` | 立即刷新定时任务状态 |
 
 ### 日志
 

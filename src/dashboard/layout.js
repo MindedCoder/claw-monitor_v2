@@ -74,6 +74,14 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 .log-table { width:100%; border-collapse:collapse; font-size:12px; }
 .log-table th { text-align:left; color:#8b949e; padding:4px 8px; border-bottom:1px solid #21262d; position:sticky; top:0; background:#161b22; }
 .log-table td { padding:3px 8px; border-bottom:1px solid #0d1117; vertical-align:top; }
+.cron-table-wrap { margin-top:12px; max-height:320px; overflow:auto; }
+.cron-table { width:100%; table-layout:fixed; }
+.cron-table td { word-break:break-word; overflow-wrap:anywhere; }
+.cron-table td:nth-child(1) { font-weight:600; }
+.cron-table td:nth-child(2) { white-space:nowrap; width:72px; }
+.cron-table td:nth-child(3) { min-width:180px; color:#8b949e; }
+.cron-table td:nth-child(4) { color:#8b949e; }
+.cron-next { font-size:16px; }
 .log-time { white-space:nowrap; color:#8b949e; width:70px; }
 .log-source { color:#58a6ff; width:60px; }
 .log-level { font-weight:500; width:40px; }
@@ -115,6 +123,17 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
   .app { grid-template-columns:1fr; padding:8px; }
   .panel-cards { flex-direction:column; }
   .claw-status-panel { grid-column: 1; }
+  .cron-table-wrap { max-height:none; overflow:visible; }
+  .cron-table { display:block; table-layout:auto; }
+  .cron-table thead { display:none; }
+  .cron-table tbody { display:block; }
+  .cron-table tr { display:block; margin-bottom:8px; padding:10px 12px; border:1px solid #21262d; border-radius:8px; background:#0d1117; }
+  .cron-table td { display:grid; grid-template-columns:72px minmax(0,1fr); gap:8px; width:100%; padding:4px 0; border-bottom:0; }
+  .cron-table td::before { content:attr(data-label); color:#8b949e; font-size:11px; font-weight:500; }
+  .cron-table td:nth-child(2) { width:auto; white-space:normal; }
+  .cron-table td:nth-child(3) { min-width:0; }
+  .cron-table td[colspan] { display:block; padding:0; }
+  .cron-table td[colspan]::before { content:none; }
 }
 `;
 

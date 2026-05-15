@@ -1,0 +1,14 @@
+{
+  "name": "Claw Monitor V2",
+  "description": "监控面板",
+  "artifact": [
+    {
+      "platform": "macos",
+      "version": "1.0.0",
+      "path": ".",
+      "installHook": "bfehub-install.sh",
+      "updateHook": "bfehub-update.sh",
+      "uninstallHook": "bfehub-uninstall.sh"
+    }
+  ]
+}

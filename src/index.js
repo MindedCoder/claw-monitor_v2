@@ -10,6 +10,9 @@ import createHealthPanel from './panels/health.js';
 import createLogsPanel from './panels/logs.js';
 import createSystemLogPanel from './panels/system-log.js';
 import createFeishuStatusPanel from './panels/feishu-status.js';
+import createCronPanel from './panels/cron.js';
+import createApplicationsPanel from './panels/applications.js';
+import createWecomArchiveRelayPanel from './panels/wecom-archive-relay.js';
 import createDeployModule from './deploy/static-deploy.js';
 import { FrpcService } from '../services/frpc/manager.js';
 
@@ -26,10 +29,13 @@ async function main() {
   const logs = createLogsPanel(config);
   const syslog = createSystemLogPanel();
   const feishuStatus = createFeishuStatusPanel(config);
+  const cron = createCronPanel(config);
+  const applications = createApplicationsPanel(config);
+  const wecomArchiveRelay = createWecomArchiveRelayPanel(config, syslog);
   const deploy = createDeployModule(config);
   const frpc = new FrpcService(config, dataDir, (level, msg) => syslog.push(level, msg));
 
-  const panels = [health, feishuStatus, codex, ping, logs, syslog, deploy, frpc];
+  const panels = [health, feishuStatus, cron, codex, ping, logs, syslog, deploy, frpc, applications, wecomArchiveRelay];
 
   // collect all routes
   const routes = new Map();
@@ -76,6 +82,7 @@ async function main() {
   // start polling panels
   health.startPolling();
   feishuStatus.startPolling();
+  cron.startPolling();
   codex.startPolling();
   logs.startPolling();
 
@@ -108,6 +115,7 @@ async function main() {
     console.log('[claw-monitor-v2] shutting down...');
     health.stopPolling();
     feishuStatus.stopPolling();
+    cron.stopPolling();
     codex.stopPolling();
     logs.stopPolling();
     frpc.stop();
