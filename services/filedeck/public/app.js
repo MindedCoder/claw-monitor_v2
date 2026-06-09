@@ -10,6 +10,16 @@ let returnToMatchResults = false;
 let smartMatchDebounceTimer = null;
 let latestMatchRequestId = 0;
 const FILE_SEARCH_MIN_QUERY_LENGTH = 2;
+const DESKTOP_PREVIEW_QUERY = '(min-width: 980px)';
+const PREVIEW_MIN_WIDTH = 420;
+const PREVIEW_MIN_LEFT_WIDTH = 360;
+const modifiedAtFormatter = new Intl.DateTimeFormat('zh-CN', {
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+});
 
 function escapeHtml(value) {
   return String(value)
@@ -43,6 +53,39 @@ function getBasePath() {
 function resolveServiceUrl(path) {
   const normalizedPath = path.startsWith('/') ? path : `/${path}`;
   return `${getBasePath()}${normalizedPath}`;
+}
+
+function formatModifiedAt(value) {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return '';
+  }
+  return modifiedAtFormatter.format(date);
+}
+
+function getEntrySummary(entry) {
+  if (entry.type === 'directory') {
+    return `${entry.itemCount ?? 0} 项`;
+  }
+  return '文件';
+}
+
+function isDesktopPreviewMode() {
+  return window.matchMedia(DESKTOP_PREVIEW_QUERY).matches;
+}
+
+function clampPreviewWidth(width) {
+  const viewportWidth = window.innerWidth || document.documentElement.clientWidth || 0;
+  const maxWidth = Math.max(PREVIEW_MIN_WIDTH, viewportWidth - PREVIEW_MIN_LEFT_WIDTH);
+  return Math.min(Math.max(width, PREVIEW_MIN_WIDTH), maxWidth);
+}
+
+function setPreviewWidth(width) {
+  document.documentElement.style.setProperty('--preview-width', `${clampPreviewWidth(width)}px`);
+}
+
+function resetPreviewWidth() {
+  document.documentElement.style.removeProperty('--preview-width');
 }
 
 async function ensureDirectoryLoaded(id) {
@@ -136,15 +179,73 @@ function markdownToHtml(markdown) {
 }
 
 function openDrawer() {
+  document.body.classList.add('preview-open');
   document.getElementById('drawer-overlay').classList.add('open');
   document.getElementById('preview-drawer').classList.add('open');
   document.getElementById('preview-drawer').setAttribute('aria-hidden', 'false');
 }
 
 function closeDrawer() {
+  document.body.classList.remove('preview-open');
   document.getElementById('drawer-overlay').classList.remove('open');
   document.getElementById('preview-drawer').classList.remove('open');
   document.getElementById('preview-drawer').setAttribute('aria-hidden', 'true');
+}
+
+function initPreviewResizer() {
+  const resizer = document.getElementById('drawer-resizer');
+  if (!resizer) {
+    return;
+  }
+
+  let dragging = false;
+
+  function updateWidth(clientX) {
+    setPreviewWidth(window.innerWidth - clientX);
+  }
+
+  resizer.addEventListener('pointerdown', (event) => {
+    if (!isDesktopPreviewMode()) {
+      return;
+    }
+    dragging = true;
+    document.body.classList.add('resizing-preview');
+    resizer.setPointerCapture(event.pointerId);
+    updateWidth(event.clientX);
+    event.preventDefault();
+  });
+
+  resizer.addEventListener('pointermove', (event) => {
+    if (!dragging) {
+      return;
+    }
+    updateWidth(event.clientX);
+  });
+
+  function stopDragging(event) {
+    if (!dragging) {
+      return;
+    }
+    dragging = false;
+    document.body.classList.remove('resizing-preview');
+    if (resizer.hasPointerCapture(event.pointerId)) {
+      resizer.releasePointerCapture(event.pointerId);
+    }
+  }
+
+  resizer.addEventListener('pointerup', stopDragging);
+  resizer.addEventListener('pointercancel', stopDragging);
+
+  window.addEventListener('resize', () => {
+    if (!isDesktopPreviewMode()) {
+      resetPreviewWidth();
+      return;
+    }
+    const computedWidth = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--preview-width'));
+    if (Number.isFinite(computedWidth)) {
+      setPreviewWidth(computedWidth);
+    }
+  });
 }
 
 function setDrawerHeader(file) {
@@ -282,10 +383,15 @@ function renderDirectory(directory) {
     return;
   }
 
+  const listHeader = document.createElement('div');
+  listHeader.className = 'entry-list-header';
+  listHeader.innerHTML = '<span>名称</span><span>修改时间</span><span>内容</span>';
+  entries.appendChild(listHeader);
+
   for (const child of children) {
     const card = document.createElement('button');
     card.type = 'button';
-    card.className = 'entry' + (child.id === activeFileId ? ' active' : '');
+    card.className = 'entry file-entry' + (child.id === activeFileId ? ' active' : '');
     card.addEventListener('click', async (event) => {
       event.preventDefault();
       if (child.type === 'directory') {
@@ -312,11 +418,22 @@ function renderDirectory(directory) {
     if (child.type === 'directory') {
       const count = document.createElement('div');
       count.className = 'entry-count';
-      count.textContent = `${child.itemCount ?? 0} 项`;
+      count.textContent = getEntrySummary(child);
       top.appendChild(count);
     }
 
     card.appendChild(top);
+
+    const modified = document.createElement('div');
+    modified.className = 'entry-meta entry-modified';
+    modified.textContent = formatModifiedAt(child.modifiedAt);
+    card.appendChild(modified);
+
+    const summary = document.createElement('div');
+    summary.className = 'entry-meta entry-summary';
+    summary.textContent = getEntrySummary(child);
+    card.appendChild(summary);
+
     entries.appendChild(card);
   }
 }
@@ -393,6 +510,39 @@ function goBack() {
   if (directory && directory.breadcrumb && directory.breadcrumb.length > 1) {
     navigateTo(directory.breadcrumb[directory.breadcrumb.length - 2].id);
   }
+}
+
+function shouldIgnoreShortcut(event) {
+  if (event.defaultPrevented || event.metaKey || event.ctrlKey || event.altKey) {
+    return true;
+  }
+
+  const target = event.target;
+  if (!target || !(target instanceof HTMLElement)) {
+    return false;
+  }
+
+  const tagName = target.tagName.toLowerCase();
+  return target.isContentEditable || tagName === 'input' || tagName === 'textarea' || tagName === 'select';
+}
+
+function initKeyboardShortcuts() {
+  document.addEventListener('keydown', (event) => {
+    if (shouldIgnoreShortcut(event)) {
+      return;
+    }
+
+    if (event.key === 'Escape' && isDrawerOpen()) {
+      event.preventDefault();
+      closeDrawer();
+      return;
+    }
+
+    if (event.key === 'Backspace') {
+      event.preventDefault();
+      goBack();
+    }
+  });
 }
 
 function restoreMatchResults() {
@@ -642,6 +792,8 @@ async function boot() {
     document.getElementById('drawer-close').addEventListener('click', closeDrawer);
     document.getElementById('smart-match-submit').addEventListener('click', clearSmartMatchInput);
     document.getElementById('smart-match-input').addEventListener('input', scheduleSmartMatch);
+    initPreviewResizer();
+    initKeyboardShortcuts();
     initSwipeBack();
     const rootDirectory = await ensureDirectoryLoaded('root');
     if (rootDirectory) {
