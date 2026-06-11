@@ -35,6 +35,23 @@ const TEXT_EXTENSIONS = new Set([
   '.jsonl',
 ]);
 
+const FORCE_DOWNLOAD_EXTENSIONS = new Set([
+  '.zip',
+  '.rar',
+  '.7z',
+  '.tar',
+  '.gz',
+  '.tgz',
+  '.bz2',
+  '.xz',
+  '.doc',
+  '.docx',
+  '.xls',
+  '.xlsx',
+  '.ppt',
+  '.pptx',
+]);
+
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'application/javascript; charset=utf-8',
@@ -209,6 +226,14 @@ function getPreviewKind(filePath) {
   if (isTextPreviewable(filePath)) return 'text';
   if (mimeType.startsWith('image/')) return 'image';
   return 'download';
+}
+
+function shouldServeRawInline(filePath, request) {
+  if (request.query.download === '1') return false;
+
+  const extension = path.extname(filePath).toLowerCase();
+  const previewKind = getPreviewKind(filePath);
+  return !FORCE_DOWNLOAD_EXTENSIONS.has(extension) && ['pdf', 'json', 'markdown', 'text', 'image'].includes(previewKind);
 }
 
 function getDefaultDirectoryPath() {
@@ -443,11 +468,16 @@ app.get('/api/raw', (request, response) => {
     }
 
     const fileName = path.basename(filePath);
-    const asciiName = fileName.replace(/[^\x20-\x7E]/g, '_');
+    const asciiName = fileName.replace(/[^\x20-\x7E]/g, '_').replace(/["\\\r\n]/g, '_') || 'download';
     const utf8Name = encodeURIComponent(fileName);
+    const disposition = shouldServeRawInline(filePath, request) ? 'inline' : 'attachment';
     response.setHeader('Content-Type', getMimeType(filePath));
     response.setHeader('Content-Length', stats.size);
-    response.setHeader('Content-Disposition', 'inline; filename="' + asciiName + '"; filename*=UTF-8\x27\x27' + utf8Name);
+    response.setHeader('Content-Disposition', disposition + '; filename="' + asciiName + '"; filename*=UTF-8\x27\x27' + utf8Name);
+    if (disposition === 'attachment') {
+      response.setHeader('X-Content-Type-Options', 'nosniff');
+      response.setHeader('X-Download-Options', 'noopen');
+    }
     fs.createReadStream(filePath).pipe(response);
   } catch (error) {
     response.status(400).json({ error: error.message });

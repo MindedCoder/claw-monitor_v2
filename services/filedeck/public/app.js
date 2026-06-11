@@ -273,8 +273,12 @@ function setDrawerHeader(file) {
 
   const downloadLink = document.createElement('a');
   downloadLink.className = 'action';
-  downloadLink.href = file.rawUrl;
+  const downloadUrl = new URL(file.rawUrl, window.location.href);
+  downloadUrl.searchParams.set('download', '1');
+  downloadLink.href = `${downloadUrl.pathname}${downloadUrl.search}${downloadUrl.hash}`;
   downloadLink.download = file.name;
+  downloadLink.target = '_blank';
+  downloadLink.rel = 'noopener noreferrer';
   downloadLink.textContent = '下载文件';
 
   const refreshButton = document.createElement('button');
