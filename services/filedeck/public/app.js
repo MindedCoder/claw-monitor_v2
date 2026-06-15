@@ -771,25 +771,6 @@ function scheduleSmartMatch() {
   }, 300);
 }
 
-function initSwipeBack() {
-  const minDistance = 80;
-  let startX = 0;
-  let startY = 0;
-
-  document.addEventListener('touchstart', (e) => {
-    startX = e.touches[0].clientX;
-    startY = e.touches[0].clientY;
-  }, { passive: true });
-
-  document.addEventListener('touchend', (e) => {
-    const dx = e.changedTouches[0].clientX - startX;
-    const dy = Math.abs(e.changedTouches[0].clientY - startY);
-    if (Math.abs(dx) > minDistance && dy < Math.abs(dx) * 0.5) {
-      goBack();
-    }
-  }, { passive: true });
-}
-
 async function boot() {
   try {
     document.getElementById('drawer-overlay').addEventListener('click', closeDrawer);
@@ -798,7 +779,6 @@ async function boot() {
     document.getElementById('smart-match-input').addEventListener('input', scheduleSmartMatch);
     initPreviewResizer();
     initKeyboardShortcuts();
-    initSwipeBack();
     const rootDirectory = await ensureDirectoryLoaded('root');
     if (rootDirectory) {
       document.getElementById('app-title').textContent = rootDirectory.name;
