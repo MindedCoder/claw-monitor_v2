@@ -16,9 +16,17 @@ function text(value, fallback = '-') {
 }
 
 function percentClass(raw, state) {
+  const normalized = String(state || '').toLowerCase();
   const value = Number(raw);
-  if (state === 'critical' || value >= 90) return 'critical';
-  if (state === 'warning' || value >= 75) return 'warn';
+  if (normalized === 'critical' || value >= 90) return 'critical';
+  if (normalized === 'warning' || normalized === 'warn' || value >= 75) return 'warn';
+  return 'ok';
+}
+
+function stateClass(state) {
+  const normalized = String(state || '').toLowerCase();
+  if (normalized === 'critical') return 'critical';
+  if (normalized === 'warning' || normalized === 'warn') return 'warn';
   return 'ok';
 }
 
@@ -58,6 +66,12 @@ function usageCell(label, raw, display, resetAt, state) {
       <span>${esc(prefix)}${esc(shown)}</span>
       <small>${esc(text(resetAt))}</small>
     </div>`;
+}
+
+function dateCell(display, state) {
+  const shown = text(display);
+  if (shown === '-') return '<span class="sub2api-muted">-</span>';
+  return `<span class="sub2api-date ${stateClass(state)}">${esc(shown)}</span>`;
 }
 
 function normalizePayload(data) {
@@ -235,18 +249,18 @@ export default function createSub2apiUsagePanel(config) {
           </thead>
           <tbody>
             ${accounts.map((account, index) => `
-              <tr class="${statusClass(account)}" data-key="${esc(accountKey(account, index))}">
+              <tr data-status="${esc(statusClass(account))}" data-key="${esc(accountKey(account, index))}">
                 <td>${esc(text(account.site || account.target_id))}</td>
                 <td class="sub2api-account" title="${esc(text(account.account))}">${esc(text(account.account))}</td>
                 <td>
                   <strong>${esc(text(account.group))}</strong>
                   <small>${esc(text(account.platform))}</small>
                 </td>
-                <td><span class="sub2api-status">${esc(statusLabel(account))}</span></td>
-                <td>${usageCell('', account.usage_5h_raw, account.usage_5h, account.usage_5h_reset_at, account.usage_state)}</td>
-                <td>${usageCell('', account.usage_7d_raw, account.usage_7d, account.usage_7d_reset_at, account.usage_state)}</td>
-                <td>${esc(text(account.subscription_expires_at))}</td>
-                <td>${esc(text(account.credential_expires_at))}</td>
+                <td><span class="sub2api-status ${statusClass(account)}">${esc(statusLabel(account))}</span></td>
+                <td>${usageCell('', account.usage_5h_raw, account.usage_5h, account.usage_5h_reset_at, account.usage_5h_state)}</td>
+                <td>${usageCell('', account.usage_7d_raw, account.usage_7d, account.usage_7d_reset_at, account.usage_7d_state)}</td>
+                <td>${dateCell(account.subscription_expires_at, account.subscription_expiry_state)}</td>
+                <td>${dateCell(account.credential_expires_at, account.credential_expiry_state)}</td>
               </tr>`).join('')}
           </tbody>
         </table>

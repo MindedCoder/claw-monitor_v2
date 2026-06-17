@@ -86,18 +86,21 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 .sub2api-table th:nth-child(6), .sub2api-table td:nth-child(6) { width:110px; }
 .sub2api-table th:nth-child(7), .sub2api-table td:nth-child(7),
 .sub2api-table th:nth-child(8), .sub2api-table td:nth-child(8) { width:150px; }
-.sub2api-table tr.ok td { color:#3fb950; }
-.sub2api-table tr.warn td { color:#d29922; }
-.sub2api-table tr.fail td { color:#f85149; }
 .sub2api-account { font-weight:600; color:#c9d1d9; }
-.sub2api-table td strong { display:inline-block; max-width:92px; overflow:hidden; text-overflow:ellipsis; vertical-align:bottom; color:inherit; }
+.sub2api-table td strong { display:inline-block; max-width:92px; overflow:hidden; text-overflow:ellipsis; vertical-align:bottom; color:#c9d1d9; }
 .sub2api-table td small { margin-left:6px; color:#8b949e; }
-.sub2api-status { display:inline-block; min-width:96px; padding:3px 8px; border:1px solid currentColor; text-align:center; color:inherit; }
+.sub2api-status { display:inline-block; min-width:96px; padding:3px 8px; border:1px solid currentColor; text-align:center; color:#8b949e; }
+.sub2api-status.ok { color:#3fb950; }
+.sub2api-status.warn { color:#d29922; }
+.sub2api-status.fail { color:#f85149; }
 .sub2api-usage-cell { display:flex; flex-direction:column; line-height:1.3; }
 .sub2api-usage-cell.ok span { color:#3fb950; }
 .sub2api-usage-cell.warn span { color:#d29922; }
 .sub2api-usage-cell.critical span { color:#f85149; }
 .sub2api-usage-cell small { margin:0; color:#8b949e; }
+.sub2api-date { color:#8b949e; }
+.sub2api-date.warn { color:#d29922; }
+.sub2api-date.critical { color:#f85149; }
 .sub2api-empty { color:#8b949e; font-size:13px; padding:10px 0; }
 .sub2api-error { color:#f85149; font-size:12px; margin-top:8px; }
 .sub2api-muted { color:#8b949e; }
