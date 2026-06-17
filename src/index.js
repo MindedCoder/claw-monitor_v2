@@ -12,6 +12,7 @@ import createSystemLogPanel from './panels/system-log.js';
 import createFeishuStatusPanel from './panels/feishu-status.js';
 import createCronPanel from './panels/cron.js';
 import createApplicationsPanel from './panels/applications.js';
+import createSub2apiUsagePanel from './panels/sub2api-usage.js';
 import createDeployModule from './deploy/static-deploy.js';
 import { FrpcService } from '../services/frpc/manager.js';
 
@@ -30,10 +31,11 @@ async function main() {
   const feishuStatus = createFeishuStatusPanel(config);
   const cron = createCronPanel(config);
   const applications = createApplicationsPanel(config);
+  const sub2apiUsage = createSub2apiUsagePanel(config);
   const deploy = createDeployModule(config);
   const frpc = new FrpcService(config, dataDir, (level, msg) => syslog.push(level, msg));
 
-  const panels = [health, feishuStatus, cron, codex, ping, logs, syslog, deploy, frpc, applications];
+  const panels = [health, sub2apiUsage, feishuStatus, cron, codex, ping, logs, syslog, deploy, frpc, applications];
 
   // collect all routes
   const routes = new Map();
@@ -79,6 +81,7 @@ async function main() {
 
   // start polling panels
   health.startPolling();
+  sub2apiUsage.startPolling();
   feishuStatus.startPolling();
   cron.startPolling();
   codex.startPolling();
@@ -112,6 +115,7 @@ async function main() {
   const shutdown = () => {
     console.log('[claw-monitor-v2] shutting down...');
     health.stopPolling();
+    sub2apiUsage.stopPolling();
     feishuStatus.stopPolling();
     cron.stopPolling();
     codex.stopPolling();

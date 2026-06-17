@@ -33,6 +33,19 @@
     "authProfilesPath": "~/.openclaw/agents/main/agent/auth-profiles.json"
   },
 
+  "sub2apiUsage": {
+    "enabled": false,
+    "monitorBaseUrl": "https://monitor.example.com",
+    "customerEmail": "",
+    "apiToken": "",
+    "intervalMs": 30000,
+    "cacheTtlMs": 30000,
+    "timeoutMs": 8000,
+    "staleTtlMs": 300000,
+    "allowLocalRefresh": false,
+    "allowUpstreamRefresh": false
+  },
+
   "logs": {
     "maxEntries": 500,
     "sources": [
