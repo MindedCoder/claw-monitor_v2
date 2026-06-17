@@ -68,6 +68,43 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
 .progress-fill.warn { background:#d29922; }
 .usage-pct { font-size:12px; color:#8b949e; min-width:36px; text-align:right; }
 
+.sub2api-usage-panel { grid-column:1 / -1; }
+.sub2api-actions { display:flex; align-items:center; gap:8px; }
+.sub2api-summary { display:grid; grid-template-columns:repeat(4,minmax(120px,1fr)); gap:10px; margin-bottom:12px; }
+.sub2api-summary-card { background:#0d1117; border:1px solid #21262d; border-radius:6px; padding:10px 12px; min-width:0; }
+.sub2api-summary-card span { display:block; color:#8b949e; font-size:12px; margin-bottom:4px; }
+.sub2api-summary-card strong { display:block; color:#c9d1d9; font-size:16px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sub2api-table-wrap { overflow-x:auto; }
+.sub2api-table { width:100%; min-width:1120px; border-collapse:collapse; table-layout:fixed; font-size:12px; }
+.sub2api-table th { text-align:left; color:#8b949e; padding:8px 10px; border-bottom:1px solid #30363d; white-space:nowrap; }
+.sub2api-table td { padding:9px 10px; border-bottom:1px solid #21262d; vertical-align:middle; color:#8b949e; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sub2api-table th:nth-child(1), .sub2api-table td:nth-child(1) { width:120px; }
+.sub2api-table th:nth-child(2), .sub2api-table td:nth-child(2) { width:260px; }
+.sub2api-table th:nth-child(3), .sub2api-table td:nth-child(3) { width:160px; }
+.sub2api-table th:nth-child(4), .sub2api-table td:nth-child(4) { width:140px; }
+.sub2api-table th:nth-child(5), .sub2api-table td:nth-child(5),
+.sub2api-table th:nth-child(6), .sub2api-table td:nth-child(6) { width:110px; }
+.sub2api-table th:nth-child(7), .sub2api-table td:nth-child(7),
+.sub2api-table th:nth-child(8), .sub2api-table td:nth-child(8) { width:150px; }
+.sub2api-account { font-weight:600; color:#c9d1d9; }
+.sub2api-table td strong { display:inline-block; max-width:92px; overflow:hidden; text-overflow:ellipsis; vertical-align:bottom; color:#c9d1d9; }
+.sub2api-table td small { margin-left:6px; color:#8b949e; }
+.sub2api-status { display:inline-block; min-width:96px; padding:3px 8px; border:1px solid currentColor; text-align:center; color:#8b949e; }
+.sub2api-status.ok { color:#3fb950; }
+.sub2api-status.warn { color:#d29922; }
+.sub2api-status.fail { color:#f85149; }
+.sub2api-usage-cell { display:flex; flex-direction:column; line-height:1.3; }
+.sub2api-usage-cell.ok span { color:#3fb950; }
+.sub2api-usage-cell.warn span { color:#d29922; }
+.sub2api-usage-cell.critical span { color:#f85149; }
+.sub2api-usage-cell small { margin:0; color:#8b949e; }
+.sub2api-date { color:#8b949e; }
+.sub2api-date.warn { color:#d29922; }
+.sub2api-date.critical { color:#f85149; }
+.sub2api-empty { color:#8b949e; font-size:13px; padding:10px 0; }
+.sub2api-error { color:#f85149; font-size:12px; margin-top:8px; }
+.sub2api-muted { color:#8b949e; }
+
 .raw-json { font-size:11px; color:#8b949e; overflow:auto; max-height:120px; white-space:pre-wrap; word-break:break-all; }
 
 .log-table-wrap { max-height:320px; overflow-y:auto; }
@@ -123,6 +160,8 @@ body { background:#0d1117; color:#c9d1d9; font-family:-apple-system,BlinkMacSyst
   .app { grid-template-columns:1fr; padding:8px; }
   .panel-cards { flex-direction:column; }
   .claw-status-panel { grid-column: 1; }
+  .sub2api-usage-panel { grid-column: 1; }
+  .sub2api-summary { grid-template-columns:repeat(2,minmax(0,1fr)); }
   .cron-table-wrap { max-height:none; overflow:visible; }
   .cron-table { display:block; table-layout:auto; }
   .cron-table thead { display:none; }
@@ -146,6 +185,19 @@ async function triggerPing() {
 async function refreshCodex() {
   try {
     await fetch(BASE+'/api/codex-usage/refresh');
+  } catch(e) { console.error(e); }
+}
+async function reloadPanels() {
+  const r = await fetch(BASE+'/api/html'+SHOW_PARAM);
+  if (r.ok) {
+    const html = await r.text();
+    document.querySelector('.app').innerHTML = html;
+  }
+}
+async function refreshSub2apiUsage() {
+  try {
+    await fetch(BASE+'/api/sub2api-usage/refresh');
+    await reloadPanels();
   } catch(e) { console.error(e); }
 }
 let logHover = false;

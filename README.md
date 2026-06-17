@@ -152,6 +152,14 @@ git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/.bfe/claw-monitor
     "authProfilesPath": "~/.openclaw/agents/main/agent/auth-profiles.json"
   },
 
+  "sub2apiUsage": {
+    "enabled": false,
+    "monitorBaseUrl": "https://monitor.example.com",
+    "customerEmail": "",
+    "intervalMs": 30000,
+    "cacheTtlMs": 30000
+  },
+
   "logs": {
     "sources": [                   // 自定义日志源
       { "name": "gateway", "path": "~/.openclaw/logs/gateway.log" },
@@ -203,6 +211,13 @@ git clone https://github.com/MindedCoder/claw-monitor_v2.git ~/.bfe/claw-monitor
 |------|------|------|
 | GET | `/api/codex-usage` | 获取缓存的使用量数据 |
 | GET | `/api/codex-usage/refresh` | 立即刷新使用量 |
+
+### sub2api 客户用量
+
+| 方法 | 路径 | 说明 |
+|------|------|------|
+| GET | `/api/sub2api-usage` | 获取当前客户的缓存用量数据 |
+| GET | `/api/sub2api-usage/refresh` | 刷新当前客户用量数据 |
 
 ### OpenClaw 健康检查
 
