@@ -18,7 +18,7 @@ function resolveRelative(p) {
 }
 
 function loadJson(filePath) {
-  return JSON.parse(readFileSync(filePath, 'utf-8'));
+  return JSON.parse(readFileSync(filePath, 'utf-8').replace(/^\uFEFF/, ''));
 }
 
 function loadOpenClawGatewayToken() {
