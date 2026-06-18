@@ -11,6 +11,7 @@ CONFIG_FILE="${INSTALL_DIR}/data/config.json"
 OPENCLAW_CONFIG_FILE="${HOME}/.openclaw/openclaw.json"
 HUB_PULLER_URL_DEFAULT="http://100.76.197.26:8126"
 HUB_PULLER_URL="${HUB_PULLER_URL:-$HUB_PULLER_URL_DEFAULT}"
+SUB2API_USAGE_MONITOR_URL_DEFAULT="http://100.71.199.7:18191"
 
 configure_feishu_status() {
   local mode="$1"
@@ -22,10 +23,10 @@ configure_feishu_status() {
 
   if [ -f "$CONFIG_FILE" ]; then
     local existing_values
-    existing_values=$(CONFIG_FILE="$CONFIG_FILE" node <<'NODE'
+    existing_values=$(CONFIG_FILE="$CONFIG_FILE" "${NODE_BIN:-node}" <<'NODE'
 const fs = require('fs');
 const path = process.env.CONFIG_FILE;
-const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
 const f = cfg.feishuStatus || {};
 const enabled = cfg.feishuStatus && f.enabled !== false ? 'true' : 'false';
 console.log([
@@ -48,18 +49,18 @@ NODE
 
   echo ""
   if [ "$mode" = "existing" ] && [ "$currently_enabled" = "true" ]; then
-    read -rp "飞书聊天状态监控当前已启用，是否保持启用? [Y/n]: " enable_choice
+    read -rp "飞书聊天状态监控当前已启用，是否保持启用? [Y/n]: " enable_choice || enable_choice=""
     [ -z "$enable_choice" ] && enable_choice="y"
   else
-    read -rp "是否启用飞书聊天状态监控? [y/N]: " enable_choice
+    read -rp "是否启用飞书聊天状态监控? [y/N]: " enable_choice || enable_choice=""
   fi
 
   if [[ ! "$enable_choice" =~ ^[Yy]$ ]]; then
     export CONFIG_FILE
-    node <<'NODE'
+    "${NODE_BIN:-node}" <<'NODE'
 const fs = require('fs');
 const path = process.env.CONFIG_FILE;
-const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
 cfg.feishuStatus = { enabled: false };
 fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
 console.log('[INFO] Feishu status monitor disabled');
@@ -69,16 +70,16 @@ NODE
 
   echo "[INFO] 默认通过本机 openclaw 会话存储读取数据，无需填写 Gateway WS/Token"
   echo "[INFO] 直接回车即可使用默认值"
-  read -rp "活跃窗口分钟数 [${active_minutes}]: " active_minutes_input
+  read -rp "活跃窗口分钟数 [${active_minutes}]: " active_minutes_input || active_minutes_input=""
   active_minutes="${active_minutes_input:-$active_minutes}"
-  read -rp "刷新间隔毫秒 [${refresh_ms}]: " refresh_ms_input
+  read -rp "刷新间隔毫秒 [${refresh_ms}]: " refresh_ms_input || refresh_ms_input=""
   refresh_ms="${refresh_ms_input:-$refresh_ms}"
 
   export CONFIG_FILE FEISHU_ACTIVE_MINUTES="$active_minutes" FEISHU_REFRESH_MS="$refresh_ms"
-  node <<'NODE'
+  "${NODE_BIN:-node}" <<'NODE'
 const fs = require('fs');
 const path = process.env.CONFIG_FILE;
-const cfg = JSON.parse(fs.readFileSync(path, 'utf8'));
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
 cfg.feishuStatus = {
   enabled: true,
   activeMinutes: Number(process.env.FEISHU_ACTIVE_MINUTES || '240') || 240,
@@ -90,6 +91,180 @@ cfg.feishuStatus = {
 };
 fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
 console.log('[OK] feishuStatus config written to', path);
+NODE
+}
+
+configure_sub2api_usage() {
+  local mode="$1"
+  local enable_choice=""
+  local currently_enabled="false"
+  local monitor_url="$SUB2API_USAGE_MONITOR_URL_DEFAULT"
+  local customer_email=""
+  local interval_ms="30000"
+  local cache_ttl_ms="30000"
+  local timeout_ms="8000"
+  local stale_ttl_ms="300000"
+  local allow_local_refresh="false"
+  local allow_upstream_refresh="false"
+  local api_token=""
+
+  trim_value() {
+    printf '%s' "$1" | xargs
+  }
+
+  is_http_url() {
+    [[ "$1" =~ ^https?://[^[:space:]]+$ ]]
+  }
+
+  is_email_like() {
+    [[ "$1" =~ ^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$ ]]
+  }
+
+  if [ -f "$CONFIG_FILE" ]; then
+    local existing_values
+    existing_values=$(CONFIG_FILE="$CONFIG_FILE" "${NODE_BIN:-node}" <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
+const usage = cfg.sub2apiUsage || {};
+const enabled = cfg.sub2apiUsage && usage.enabled === true ? 'true' : 'false';
+console.log([
+  `enabled=${enabled}`,
+  `monitor_url=${String(usage.monitorBaseUrl || '')}`,
+  `customer_email=${String(usage.customerEmail || '')}`,
+  `interval_ms=${String(usage.intervalMs || 30000)}`,
+  `cache_ttl_ms=${String(usage.cacheTtlMs || 30000)}`,
+  `timeout_ms=${String(usage.timeoutMs || 8000)}`,
+  `stale_ttl_ms=${String(usage.staleTtlMs || 300000)}`,
+  `allow_local_refresh=${usage.allowLocalRefresh === true ? 'true' : 'false'}`,
+  `allow_upstream_refresh=${usage.allowUpstreamRefresh === true ? 'true' : 'false'}`,
+  `api_token=${String(usage.apiToken || '')}`,
+].join('\n'));
+NODE
+)
+    if [ -n "$existing_values" ]; then
+      local key=""
+      local value=""
+      while IFS='=' read -r key value; do
+        case "$key" in
+          enabled) currently_enabled="${value:-false}" ;;
+          monitor_url) monitor_url="$value" ;;
+          customer_email) customer_email="$value" ;;
+          interval_ms) interval_ms="${value:-30000}" ;;
+          cache_ttl_ms) cache_ttl_ms="${value:-30000}" ;;
+          timeout_ms) timeout_ms="${value:-8000}" ;;
+          stale_ttl_ms) stale_ttl_ms="${value:-300000}" ;;
+          allow_local_refresh) allow_local_refresh="${value:-false}" ;;
+          allow_upstream_refresh) allow_upstream_refresh="${value:-false}" ;;
+          api_token) api_token="$value" ;;
+        esac
+      done <<EOF
+$existing_values
+EOF
+    fi
+  fi
+
+  if [ -z "$monitor_url" ] || [ "$monitor_url" = "https://monitor.example.com" ]; then
+    monitor_url="$SUB2API_USAGE_MONITOR_URL_DEFAULT"
+  fi
+  if ! is_http_url "$monitor_url"; then
+    monitor_url="$SUB2API_USAGE_MONITOR_URL_DEFAULT"
+  fi
+  if ! is_email_like "$customer_email"; then
+    customer_email=""
+  fi
+
+  echo ""
+  if [ "$mode" = "existing" ] && [ "$currently_enabled" = "true" ]; then
+    read -rp "sub2api 客户用量监控当前已启用，是否保持启用? [Y/n]: " enable_choice || enable_choice=""
+    [ -z "$enable_choice" ] && enable_choice="y"
+  else
+    read -rp "是否启用 sub2api 客户用量监控? [y/N]: " enable_choice || enable_choice=""
+  fi
+
+  if [[ ! "$enable_choice" =~ ^[Yy]$ ]]; then
+    export CONFIG_FILE SUB2API_USAGE_MONITOR_URL="$monitor_url" SUB2API_USAGE_CUSTOMER_EMAIL="$customer_email"
+    export SUB2API_USAGE_INTERVAL_MS="$interval_ms" SUB2API_USAGE_CACHE_TTL_MS="$cache_ttl_ms"
+    export SUB2API_USAGE_TIMEOUT_MS="$timeout_ms" SUB2API_USAGE_STALE_TTL_MS="$stale_ttl_ms"
+    export SUB2API_USAGE_ALLOW_LOCAL_REFRESH="$allow_local_refresh"
+    export SUB2API_USAGE_ALLOW_UPSTREAM_REFRESH="$allow_upstream_refresh"
+    export SUB2API_USAGE_API_TOKEN="$api_token"
+    "${NODE_BIN:-node}" <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
+const existing = cfg.sub2apiUsage || {};
+cfg.sub2apiUsage = {
+  enabled: false,
+  monitorBaseUrl: process.env.SUB2API_USAGE_MONITOR_URL || existing.monitorBaseUrl || '',
+  customerEmail: process.env.SUB2API_USAGE_CUSTOMER_EMAIL || existing.customerEmail || '',
+  apiToken: process.env.SUB2API_USAGE_API_TOKEN || existing.apiToken || '',
+  intervalMs: Number(process.env.SUB2API_USAGE_INTERVAL_MS || existing.intervalMs || '30000') || 30000,
+  cacheTtlMs: Number(process.env.SUB2API_USAGE_CACHE_TTL_MS || existing.cacheTtlMs || '30000') || 30000,
+  timeoutMs: Number(process.env.SUB2API_USAGE_TIMEOUT_MS || existing.timeoutMs || '8000') || 8000,
+  staleTtlMs: Number(process.env.SUB2API_USAGE_STALE_TTL_MS || existing.staleTtlMs || '300000') || 300000,
+  allowLocalRefresh: process.env.SUB2API_USAGE_ALLOW_LOCAL_REFRESH === 'true',
+  allowUpstreamRefresh: process.env.SUB2API_USAGE_ALLOW_UPSTREAM_REFRESH === 'true',
+};
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+console.log('[INFO] sub2api usage monitor disabled');
+NODE
+    return
+  fi
+
+  echo "[INFO] 中心监控地址默认值: ${SUB2API_USAGE_MONITOR_URL_DEFAULT}"
+  while true; do
+    read -rp "中心监控地址 [${monitor_url}]: " monitor_url_input || monitor_url_input=""
+    monitor_url="$(trim_value "${monitor_url_input:-$monitor_url}")"
+    if is_http_url "$monitor_url"; then
+      break
+    fi
+    echo "[WARN] 中心监控地址必须以 http:// 或 https:// 开头。"
+    monitor_url="$SUB2API_USAGE_MONITOR_URL_DEFAULT"
+  done
+
+  if [ -n "$customer_email" ]; then
+    read -rp "客户邮箱 [${customer_email}]: " customer_email_input || customer_email_input=""
+    customer_email="${customer_email_input:-$customer_email}"
+    customer_email="$(trim_value "$customer_email")"
+  fi
+
+  while ! is_email_like "$customer_email"; do
+    if ! read -rp "客户邮箱: " customer_email; then
+      echo "[ERROR] 启用 sub2api 客户用量监控需要填写有效客户邮箱。"
+      return 1
+    fi
+    customer_email="$(trim_value "$customer_email")"
+    if ! is_email_like "$customer_email"; then
+      echo "[WARN] 启用 sub2api 客户用量监控需要填写有效客户邮箱。"
+    fi
+  done
+
+  export CONFIG_FILE SUB2API_USAGE_MONITOR_URL="$monitor_url" SUB2API_USAGE_CUSTOMER_EMAIL="$customer_email"
+  export SUB2API_USAGE_INTERVAL_MS="$interval_ms" SUB2API_USAGE_CACHE_TTL_MS="$cache_ttl_ms"
+  export SUB2API_USAGE_TIMEOUT_MS="$timeout_ms" SUB2API_USAGE_STALE_TTL_MS="$stale_ttl_ms"
+  export SUB2API_USAGE_ALLOW_LOCAL_REFRESH="$allow_local_refresh"
+  export SUB2API_USAGE_ALLOW_UPSTREAM_REFRESH="$allow_upstream_refresh"
+  export SUB2API_USAGE_API_TOKEN="$api_token"
+  "${NODE_BIN:-node}" <<'NODE'
+const fs = require('fs');
+const path = process.env.CONFIG_FILE;
+const cfg = JSON.parse(fs.readFileSync(path, 'utf8').replace(/^\uFEFF/, ''));
+const existing = cfg.sub2apiUsage || {};
+cfg.sub2apiUsage = {
+  enabled: true,
+  monitorBaseUrl: process.env.SUB2API_USAGE_MONITOR_URL || existing.monitorBaseUrl || '',
+  customerEmail: process.env.SUB2API_USAGE_CUSTOMER_EMAIL || existing.customerEmail || '',
+  apiToken: process.env.SUB2API_USAGE_API_TOKEN || existing.apiToken || '',
+  intervalMs: Number(process.env.SUB2API_USAGE_INTERVAL_MS || existing.intervalMs || '30000') || 30000,
+  cacheTtlMs: Number(process.env.SUB2API_USAGE_CACHE_TTL_MS || existing.cacheTtlMs || '30000') || 30000,
+  timeoutMs: Number(process.env.SUB2API_USAGE_TIMEOUT_MS || existing.timeoutMs || '8000') || 8000,
+  staleTtlMs: Number(process.env.SUB2API_USAGE_STALE_TTL_MS || existing.staleTtlMs || '300000') || 300000,
+  allowLocalRefresh: process.env.SUB2API_USAGE_ALLOW_LOCAL_REFRESH === 'true',
+  allowUpstreamRefresh: process.env.SUB2API_USAGE_ALLOW_UPSTREAM_REFRESH === 'true',
+};
+fs.writeFileSync(path, JSON.stringify(cfg, null, 2) + '\n');
+console.log('[OK] sub2apiUsage config written to', path);
 NODE
 }
 
@@ -163,9 +338,9 @@ fi
 # 3. install filedeck dependencies
 if [ -f "${INSTALL_DIR}/services/filedeck/package.json" ]; then
   echo "[INFO] Installing filedeck dependencies..."
-  (cd "${INSTALL_DIR}/services/filedeck" && "$NODE_BIN" "$(dirname "$NODE_BIN")/npm" install --production 2>&1) || {
+  (cd "${INSTALL_DIR}/services/filedeck" && "$NODE_BIN" "$(dirname "$NODE_BIN")/npm" install --production </dev/null 2>&1) || {
     # fallback: try npm from PATH
-    (cd "${INSTALL_DIR}/services/filedeck" && npm install --production 2>&1) || echo "[WARN] filedeck npm install failed, filedeck may not work"
+    (cd "${INSTALL_DIR}/services/filedeck" && npm install --production </dev/null 2>&1) || echo "[WARN] filedeck npm install failed, filedeck may not work"
   }
   echo "[OK] filedeck dependencies installed"
 fi
@@ -225,6 +400,19 @@ if [ ! -f "$CONFIG_FILE" ]; then
     "authProfilesPath": "~/.openclaw/agents/main/agent/auth-profiles.json"
   },
 
+  "sub2apiUsage": {
+    "enabled": false,
+    "monitorBaseUrl": "${SUB2API_USAGE_MONITOR_URL_DEFAULT}",
+    "customerEmail": "",
+    "apiToken": "",
+    "intervalMs": 30000,
+    "cacheTtlMs": 30000,
+    "timeoutMs": 8000,
+    "staleTtlMs": 300000,
+    "allowLocalRefresh": false,
+    "allowUpstreamRefresh": false
+  },
+
   "logs": {
     "maxEntries": 500,
     "sources": [
@@ -269,6 +457,7 @@ else
   echo "     To reconfigure, delete data/config.json and re-run install.sh"
 fi
 
+configure_sub2api_usage "$([ "$IS_NEW_CONFIG" = "true" ] && echo new || echo existing)"
 configure_feishu_status "$([ "$IS_NEW_CONFIG" = "true" ] && echo new || echo existing)" "false"
 
 # 4. download frpc
@@ -384,7 +573,11 @@ PLIST
   echo "[OK] LaunchAgent installed: auto-start on login enabled"
   rm -f "$PID_FILE"
 else
-  nohup bash "$STARTUP_SCRIPT" > /dev/null 2>&1 &
+  if command -v setsid >/dev/null 2>&1; then
+    setsid bash "$STARTUP_SCRIPT" > /dev/null 2>&1 < /dev/null &
+  else
+    nohup bash "$STARTUP_SCRIPT" > /dev/null 2>&1 < /dev/null &
+  fi
   MONITOR_PID=$!
   echo "$MONITOR_PID" > "$PID_FILE"
   echo "[OK] Monitor started (PID: $MONITOR_PID)"
